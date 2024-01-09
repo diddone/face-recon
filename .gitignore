@@ -1,0 +1,7 @@
+*.vscode
+*.ply
+.vs
+build/
+debug/
+Data/
+.cache/
