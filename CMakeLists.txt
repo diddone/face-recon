@@ -68,6 +68,18 @@ endif()
 target_include_directories(bfm_manager PUBLIC ./include)
 target_link_libraries(bfm_manager m ${OpenCV_LIBS} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${Boost_LIBRARIES} glog::glog Boost::filesystem)
 
+find_package(glfw3 REQUIRED)
+add_subdirectory("./include/glad")
+include_directories("./include/glad")
+
+add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
+        src/shader_class.h include/stb_image.h src/utils.h
+        src/face_mesh.h)
+target_include_directories(visualizer PUBLIC ./include)
+target_link_libraries(visualizer glfw glad bfm_manager)
+
+
+
 add_executable(del src/del.cpp src/utils.h)
 target_link_libraries(del bfm_manager)
 ###############################################################################################
