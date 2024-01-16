@@ -29,6 +29,9 @@ endif()
 add_library(bfm_manager SHARED src/bfm_manager.cpp)
 target_compile_features(bfm_manager PRIVATE cxx_std_17)
 
+add_library(visualizer SHARED src/visualizer.cpp)
+target_compile_features(visualizer PRIVATE cxx_std_17)
+
 ###############################################################################################
 ######################################## Dedendency ###########################################
 ###############################################################################################
@@ -44,14 +47,17 @@ find_package(VTK)
 MESSAGE(STATUS "FINDING EIGEN")
 find_package(Eigen3 REQUIRED NO_MODULE)
 target_include_directories(bfm_manager PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_include_directories(visualizer PUBLIC ${EIGEN3_INCLUDE_DIR})
 
 # Hdf5
 find_package(HDF5 REQUIRED C CXX)
 target_include_directories(bfm_manager PUBLIC ${HDF5_INCLUDE_DIRS})
+target_include_directories(visualizer PUBLIC ${HDF5_INCLUDE_DIRS})
 
 # OpenCV
 find_package(OpenCV REQUIRED)
 target_include_directories(bfm_manager PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_include_directories(visualizer PUBLIC ${OpenCV_INCLUDE_DIRS})
 
 # Glog
 find_package(glog REQUIRED)
@@ -62,11 +68,7 @@ find_path(GLOG_INCLUDE_DIR NAMES raw_logging.h
 )
 set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
 target_include_directories(bfm_manager PUBLIC ${GLOG_INCLUDE_DIR})
-
-#Boost
-find_package(Boost REQUIRED system filesystem program_options)
-target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
-
+target_include_directories(visualizer PUBLIC ${GLOG_INCLUDE_DIR})
 
 # OpenMP
 MESSAGE(STATUS "FINDING OPENMP")
@@ -77,6 +79,11 @@ if(OPENMP_FOUND)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
+
+#Boost
+find_package(Boost REQUIRED system filesystem program_options)
+target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(visualizer PUBLIC ${Boost_INCLUDE_DIRS})
 
 
 find_package(yaml-cpp REQUIRED)
@@ -96,6 +103,10 @@ find_package(yaml-cpp REQUIRED)
 #     add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
 # endif()
 
+#GLFW
+find_package(glfw3 REQUIRED)
+add_subdirectory("./include/glad")
+target_include_directories(visualizer PUBLIC "./include/glad")
 
 
 # #PCL
@@ -117,17 +128,12 @@ target_include_directories(bfm_manager PUBLIC ./include)
 target_link_libraries(bfm_manager m ${OpenCV_LIBS} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${Boost_LIBRARIES} glog::glog Boost::filesystem)
 
 add_executable(main src/main.cpp src/utils.h)
-target_link_libraries(main bfm_manager yaml-cpp::yaml-cpp ${PCL_LIBRARIES})
+target_link_libraries(main bfm_manager yaml-cpp ${PCL_LIBRARIES})
 
-find_package(glfw3 REQUIRED)
-add_subdirectory("./include/glad")
-include_directories("./include/glad")
 
-add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
-        src/shader_class.h include/stb_image.h src/utils.h
-        src/face_mesh.h)
+# Visualizer
 target_include_directories(visualizer PUBLIC ./include)
-target_link_libraries(visualizer glfw glad bfm_manager)
+target_link_libraries(visualizer glfw glad bfm_manager yaml-cpp ${OpenCV_LIBS} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${Boost_LIBRARIES} glog::glog Boost::filesystem)
 
 
 
