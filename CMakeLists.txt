@@ -7,6 +7,24 @@ set(CMAKE_CXX_STANDARD 17)
 if(UNIX)
    add_compile_options(-fPIC)
 endif()
+# if(APPLE)
+# if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+#     set(OpenMP_C "${CMAKE_C_COMPILER}" CACHE STRING "" FORCE)
+#     set(OpenMP_C_FLAGS "-Wno-unused-command-line-argument" CACHE STRING "" FORCE)
+#     set(OpenMP_C_LIB_NAMES "libomp" "libgomp" "libiomp5" CACHE STRING "" FORCE)
+#     set(OpenMP_libomp_LIBRARY ${OpenMP_C_LIB_NAMES} CACHE STRING "" FORCE)
+#     set(OpenMP_libgomp_LIBRARY ${OpenMP_C_LIB_NAMES} CACHE STRING "" FORCE)
+#     set(OpenMP_libiomp5_LIBRARY ${OpenMP_C_LIB_NAMES} CACHE STRING "" FORCE)
+# endif()
+# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#   set(OpenMP_CXX "${CMAKE_CXX_COMPILER}" CACHE STRING "" FORCE)
+#   set(OpenMP_CXX_FLAGS "-fopenmp=libomp -Wno-unused-command-line-argument" CACHE STRING "" FORCE)
+#   set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5" CACHE STRING "" FORCE)
+#   set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES} CACHE STRING "" FORCE)
+#   set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES} CACHE STRING "" FORCE)
+#   set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES} CACHE STRING "" FORCE)
+# endif()
+# endif()
 
 add_library(bfm_manager SHARED src/bfm_manager.cpp)
 target_compile_features(bfm_manager PRIVATE cxx_std_17)
@@ -20,7 +38,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpmath=sse -funroll-loops -Wno-reorder")
 endif()
 
+#VTK
+find_package(VTK)
 # Eigen3
+MESSAGE(STATUS "FINDING EIGEN")
 find_package(Eigen3 REQUIRED NO_MODULE)
 target_include_directories(bfm_manager PUBLIC ${EIGEN3_INCLUDE_DIR})
 
@@ -29,8 +50,6 @@ find_package(HDF5 REQUIRED C CXX)
 target_include_directories(bfm_manager PUBLIC ${HDF5_INCLUDE_DIRS})
 
 # OpenCV
-set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
-
 find_package(OpenCV REQUIRED)
 target_include_directories(bfm_manager PUBLIC ${OpenCV_INCLUDE_DIRS})
 
@@ -44,7 +63,13 @@ find_path(GLOG_INCLUDE_DIR NAMES raw_logging.h
 set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
 target_include_directories(bfm_manager PUBLIC ${GLOG_INCLUDE_DIR})
 
+#Boost
+find_package(Boost REQUIRED system filesystem program_options)
+target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
 
+
+# OpenMP
+MESSAGE(STATUS "FINDING OPENMP")
 FIND_PACKAGE(OpenMP REQUIRED)
 if(OPENMP_FOUND)
    message("OPENMP FOUND")
@@ -53,9 +78,32 @@ if(OPENMP_FOUND)
    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-find_package(Boost REQUIRED system filesystem program_options)
-target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
 
+find_package(yaml-cpp REQUIRED)
+#Yaml
+# set(YAML_BUILD_SHARED_LIBS ON)
+# MESSAGE(STATUS "FINDING YAML")
+# include(FetchContent)
+# FetchContent_Declare(
+#     yaml-cpp
+#     GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+#     # GIT_TAG <tag_name> # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+# )
+# FetchContent_GetProperties(yaml-cpp)
+# if(NOT yaml-cpp_POPULATED)
+#     message(STATUS "Fetching yaml-cpp...")
+#     FetchContent_Populate(yaml-cpp)
+#     add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
+# endif()
+
+
+
+# #PCL
+MESSAGE(STATUS "FOUNDING PCL")
+find_package(PCL REQUIRED)
+target_include_directories(bfm_manager PUBLIC ${PCL_INCLUDE_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+target_link_directories(bfm_manager PUBLIC ${PCL_LIBRARY_DIRS})
 
 if(UNIX)
     set(LIBS
@@ -68,8 +116,8 @@ endif()
 target_include_directories(bfm_manager PUBLIC ./include)
 target_link_libraries(bfm_manager m ${OpenCV_LIBS} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${Boost_LIBRARIES} glog::glog Boost::filesystem)
 
-add_executable(del src/del.cpp src/utils.h)
-target_link_libraries(del bfm_manager)
+add_executable(main src/main.cpp src/utils.h)
+target_link_libraries(main bfm_manager yaml-cpp::yaml-cpp ${PCL_LIBRARIES})
 ###############################################################################################
 ######################################## Options ##############################################
 ###############################################################################################

@@ -1,3 +1,4 @@
+#include "utils.h"
 #include "bfm_manager.h"
 
 #include <fstream>
@@ -10,29 +11,42 @@
 
 #include <string>
 #include <vector>
-#include "utils.h"
+
+#include "procrustes_aligner.h"
 
 const std::string LOG_PATH("(./log)");
 
 int main(int argc, char *argv[])
 {
     // logging
-    std::string sBfmH5Path, sLandmarkIdxPath;
-    double dFx = 1744.327628674942, dFy = 1747.838275588676, dCx = 800., dCy = 600.;
-    bool isInitGlog = initGlog(argc, argv, sBfmH5Path, sLandmarkIdxPath, LOG_PATH);
+    boost::filesystem::path data_path("../Data");
+    std::string sBfmH5Path = (data_path / "model2017-1_face12_nomouth.h5").string();
+    std::string sLandmarkIdxPath = (data_path / "landmark_68.anl").string();
+
+    bool isInitGlog = initGlog(argc, argv, LOG_PATH);
     if (!isInitGlog) {
         std::cout << "Glog problem\n";
         return 1;
     }
     // intrinsics parameters
-	CameraProjection camProj(dFx, dFy, dCx, dCy);
+    std::string cameraInfoPath((data_path / ("rgbd_face_dataset_training/camera_info.yaml")).string());
+	ImageUtilityThing imageUtility(cameraInfoPath);
 	std::unique_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
-    // TODO initisalize image and landmarks
-    cv::Mat image;
-    std::vector<Eigen::Vector2i> imageLandmarks;
+    std::string imageFile = (data_path/"image.png").string();
+    std::string cloudFile = (data_path/"cloud.pcd").string();
+    std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
+    imageUtility.input(imageFile, cloudFile, landmarkFile);
+    VectorXd imageLandmarks = imageUtility.getXYZLandmarks();
 
-    pBfmManager->writeLandmarkPly("landmarks.ply");
+    // imageUtility.getUVLandmarks()
+    // Procruster: XYZ vector from BFM manager and XYZ vector from ImageUtility
+    //
+    ProcrustesAligner procruster;
+    Matrix4d initPose = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
+
+    // pBfmManager->m_vecLandmarkCurrentBlendshape;
+    pBfmManager->writeLandmarkPly("out_landmarks.ply");
 	pBfmManager->writePly("rnd_face.ply", ModelWriteMode_None);
 
 	google::ShutdownGoogleLogging();
