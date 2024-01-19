@@ -21,6 +21,10 @@ public:
     vector<unsigned int> indices;
     unsigned int VAO;
 
+    Mesh() {
+
+    }
+
     // constructor
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices)
     {

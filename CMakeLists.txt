@@ -27,7 +27,8 @@ endif()
 # endif()
 # endif()
 
-add_library(bfm_manager SHARED src/bfm_manager.cpp)
+add_library(bfm_manager SHARED src/bfm_manager.cpp
+        src/visualizer.h)
 target_compile_features(bfm_manager PRIVATE cxx_std_17)
 
 ###############################################################################################
@@ -127,7 +128,9 @@ target_link_libraries(main bfm_manager yaml-cpp ${PCL_LIBRARIES})
 # Visualizer
 add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
         src/shader_class.h include/stb_image.h src/utils.h
-        src/face_mesh.h)
+        src/face_mesh.h
+        src/visualizer.h
+        src/optimizer_class.h)
 target_include_directories(visualizer PUBLIC ./include)
 target_link_libraries(visualizer glfw glad bfm_manager Boost::filesystem Boost::system)
 target_include_directories(visualizer PUBLIC ./include)

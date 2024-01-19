@@ -72,9 +72,9 @@ public:
 	 * 		bfmManager.genRndFace(1.0);
 	 * 		bfmManager.genRndFace(1.0, 1.0, 1.0);
 	 * @Parameters
-	 * 		dScale: Scale for shape, texture and expression (default is 0.0);
+	 * 		dScale: Scale for shape, imageTexture and expression (default is 0.0);
 	 * 		dShapeScale: Scale for shape;
-	 * 		dTexScale: Scale for texture;
+	 * 		dTexScale: Scale for imageTexture;
 	 * 		dExprScale: Scale for expression.
 	 */
 
