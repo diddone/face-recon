@@ -117,12 +117,15 @@ endif()
 find_package(Boost REQUIRED system filesystem program_options)
 target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
 
+#Ceres
+find_package(Ceres REQUIRED)
+
 # Bfm Manager
 target_include_directories(bfm_manager PUBLIC ./include)
 target_link_libraries(bfm_manager m ${OpenCV_LIBS} ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${Boost_LIBRARIES} glog::glog Boost::filesystem)
 
 add_executable(main src/main.cpp src/utils.h)
-target_link_libraries(main bfm_manager yaml-cpp ${PCL_LIBRARIES})
+target_link_libraries(main bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
 
 
 # Visualizer
