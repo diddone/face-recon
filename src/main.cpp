@@ -14,7 +14,7 @@
 
 #include "procrustes_aligner.h"
 
-const std::string LOG_PATH("(./log)");
+const std::string LOG_PATH("./log");
 
 int main(int argc, char *argv[])
 {
@@ -23,11 +23,25 @@ int main(int argc, char *argv[])
     std::string sBfmH5Path = (data_path / "model2017-1_face12_nomouth.h5").string();
     std::string sLandmarkIdxPath = (data_path / "landmark_68.anl").string();
 
+    // Check if the log directory exists, and create it if it doesn't
+    boost::filesystem::path log_path(LOG_PATH);
+    if (!boost::filesystem::exists(log_path)) {
+        if (!boost::filesystem::create_directory(log_path)) {
+            std::cerr << "Could not create log directory." << std::endl;
+            return 1;
+        }
+    }
+
+    // Initialize Google Logging here, after the check for the log directory
     bool isInitGlog = initGlog(argc, argv, LOG_PATH);
     if (!isInitGlog) {
         std::cout << "Glog problem\n";
         return 1;
     }
+
+    //Test logging
+    LOG(INFO) << "Logging initialized successfully.";
+
     // intrinsics parameters
     std::string cameraInfoPath((data_path / ("rgbd_face_dataset_training/camera_info.yaml")).string());
 	ImageUtilityThing imageUtility(cameraInfoPath);
