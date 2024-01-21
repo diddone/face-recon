@@ -135,7 +135,7 @@ add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
         src/visualizer.h
         src/optimizer_class.h)
 target_include_directories(visualizer PUBLIC ./include)
-target_link_libraries(visualizer glfw glad bfm_manager Boost::filesystem Boost::system)
+target_link_libraries(visualizer glfw glad bfm_manager yaml-cpp Boost::filesystem Boost::system)
 target_include_directories(visualizer PUBLIC ./include)
 
 # del

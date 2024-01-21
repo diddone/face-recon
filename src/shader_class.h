@@ -97,9 +97,9 @@ public:
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
     }
 
-    void setMatrix(const std::string &name, Eigen::Matrix4f transformation) const
+    void setMatrix(const std::string &name, Eigen::Matrix4d transformation) const
     {
-        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, transformation.data());
+        glUniformMatrix4dv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, transformation.data());
     }
 
 private:
