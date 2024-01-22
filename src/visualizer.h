@@ -164,14 +164,18 @@ public:
         stbi_image_free(data);
     }
 
-    bool setupFace(unique_ptr<BfmManager> pBfmManager) {
-        // remove this once we have the actual transformation matrix
-//        transformationMatrix = Eigen::Matrix4d::Zero();
-//        float scale_factor = 0.5;
-//        transformationMatrix.diagonal()[0] = scale_factor;
-//        transformationMatrix.diagonal()[1] = scale_factor;
-//        transformationMatrix.diagonal()[2] = scale_factor;
-//        transformationMatrix.diagonal()[3] = 1.0f;
+    bool setupFace(shared_ptr<BfmManager> pBfmManager) {
+        double scale = 0.0010931;
+        Eigen::Matrix3d rotation;
+        rotation << 0.999895, 0.0143569, -0.00170876,
+                0.0144556, -0.99044, 0.137185,
+                0.000277125, -0.137195, -0.990544;
+        Eigen::Vector3d translation(-0.0958164, -0.0159176, 0.833721);
+
+        transformationMatrix.block<3,3>(0,0).diagonal() *= scale;
+        transformationMatrix.block<3,3>(0,0) *= rotation;
+        transformationMatrix.block<3,1>(0,3) = translation;
+
 
 //        float left = -250, right = 250, top = 250, bottom = -250;
 //        float zFar = 1000;
@@ -181,8 +185,6 @@ public:
 //        projectionMatrix << 2 / (right - left), 0, 0, 0, 0, 2 / (top - bottom), 0,
 //                -(top + bottom) / (top - bottom), 0, 0, -2 / (zFar - zNear),
 //                -(zFar + zNear) / (zFar - zNear), 0, 0, 0, 1;
-
-        ImageUtilityThing imageUtilityThing("/home/david/Documents/tum/projects/3d/face-recon/Data/camera_info.yaml");
 
         std::vector<Vertex> face_vertices;
         std::vector<unsigned int> face_indices;
@@ -194,14 +196,11 @@ public:
             y = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3 + 1));
             z = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3 + 2));
 
-            Eigen::Vector2d result = imageUtilityThing.XYZtoUV({x, y, z});
-
             r = float(pBfmManager->m_vecCurrentTex(iVertex * 3));
             g = float(pBfmManager->m_vecCurrentTex(iVertex * 3 + 1));
             b = float(pBfmManager->m_vecCurrentTex(iVertex * 3 + 2));
 
-            face_vertices.push_back({(static_cast<float>(result.x()) / imageWidth) * 2 - 1,
-                                     (static_cast<float>(result.y()) / imageHeight) * 2 - 1, 1, r, g, b});
+            face_vertices.push_back({x, y, z, r, g, b});
         }
 
         for (size_t iIndex = 0; iIndex < pBfmManager->m_nFaces; iIndex++) {
@@ -242,7 +241,7 @@ public:
 
     void renderFaceMesh() {
         faceMeshShader.use();
-//        faceMeshShader.setMatrix("transformation", transformationMatrix);
+        faceMeshShader.setMatrix("transformation", transformationMatrix.cast<float>());
 
         face_mesh.Draw(faceMeshShader);
     }

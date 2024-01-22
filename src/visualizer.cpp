@@ -1,6 +1,7 @@
 #include "bfm_manager.h"
 #include "utils.h"
 #include "visualizer.h"
+#include "optimizer_class.h"
 #include <iostream>
 
 int main(int argc, char *argv[]) {
@@ -9,19 +10,23 @@ int main(int argc, char *argv[]) {
     visualizer.setupImage("/home/david/Documents/tum/projects/3d/face-recon/Data/image.png");
 
     std::string sBfmH5Path = "../Data/model2017-1_face12_nomouth.h5",
-            sLandmarkIdxPath = "../example/example_landmark_68.anl";
+            sLandmarkIdxPath = "../Data/landmark_68.anl";
 
     // do we care what gets passed to initGlog?
     bool isInitGlog = initGlog(argc, argv);
     if (!isInitGlog) {
-        std::cout << "Glog problem or just info help\n";
+        std::cout << "Glog sparseProblem or just info help\n";
         return false;
     }
-    std::unique_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
-    pBfmManager->genAvgFace();
-//    pBfmManager->writePly("avg_face.ply");
+    std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
+//    pBfmManager->genAvgFace();
 
-    visualizer.setupFace(std::move(pBfmManager));
+    std::shared_ptr<ImageUtilityThing> imageUtilityThing = std::make_shared<ImageUtilityThing>("/home/david/Documents/tum/projects/3d/face-recon/Data/camera_info.yaml");
+
+    Optimizer optimizer(pBfmManager, imageUtilityThing);
+    optimizer.solveSparse();
+
+    visualizer.setupFace(pBfmManager);
 
     // render loop
     // -----------
