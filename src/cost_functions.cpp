@@ -68,7 +68,7 @@ private:
 struct SparseCostFunction
 {
 	SparseCostFunction(
-        const std::unique_ptr<BfmManager>& _pBfmManager, const Matrix3d& _cameraMatrix,
+        const std::shared_ptr<const BfmManager> _pBfmManager, const Matrix3d& _cameraMatrix,
         size_t vertexInd, const Eigen::Vector2d& landmarkUV, double weight=1.0
     ):
 	pBfmManager(_pBfmManager), cameraMatrix(_cameraMatrix), vertexInd(vertexInd), landmarkUV(landmarkUV), weight(weight){}
@@ -108,22 +108,22 @@ struct SparseCostFunction
 		return true;
 	}
 
-    static ceres::CostFunction* create(const std::unique_ptr<BfmManager>& _pBfmManager, const Matrix3d& _cameraMatrix, size_t vertexInd, const Eigen::Vector2d& landmarkUV, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const Matrix3d& _cameraMatrix, size_t vertexInd, const Eigen::Vector2d& landmarkUV, double weight) {
         return new ceres::AutoDiffCostFunction<SparseCostFunction, 2, 7, N_SHAPE_PARAMS, N_EXPR_PARAMS>(
             new SparseCostFunction(_pBfmManager, _cameraMatrix, vertexInd, landmarkUV, weight)
         );
     }
 	private:
-		const std::unique_ptr<BfmManager>& pBfmManager;
+		const std::shared_ptr<const BfmManager> pBfmManager;
 		const Matrix3d& cameraMatrix;
 		size_t vertexInd;
 		const Eigen::Vector2d& landmarkUV;
-        double weight;
+        const double weight;
 };
 
 struct PriorRegCostFunction {
 
-    PriorRegCostFunction(const std::unique_ptr<BfmManager>& _pBfmManager, double weight): pBfmManager(_pBfmManager), weight(weight)
+    PriorRegCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, double weight): pBfmManager(_pBfmManager), weight(weight)
     {}
 
     template<typename T>
@@ -154,7 +154,7 @@ struct PriorRegCostFunction {
         return true;
     }
 
-    static ceres::CostFunction* create(const std::unique_ptr<BfmManager>& _pBfmManager, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, double weight) {
 
         return new ceres::AutoDiffCostFunction<PriorRegCostFunction, 1, N_SHAPE_PARAMS, N_EXPR_PARAMS, N_SHAPE_PARAMS>(
             new PriorRegCostFunction(_pBfmManager, weight)
@@ -162,13 +162,13 @@ struct PriorRegCostFunction {
     }
 
     private:
-        const std::unique_ptr<BfmManager>& pBfmManager;
-        double weight;
+        const std::shared_ptr<const BfmManager> pBfmManager;
+        const double weight;
 };
 
 
 struct ColorCostFunction {
-    ColorCostFunction(const std::unique_ptr<BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
+    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
         pBfmManager(_pBfmManager), imageUtility(_imageUtility), vertexId(vertexId), weight(weight) {
             Vector3d xyz(
                 pBfmManager->m_vecCurrentBlendshape[3 * vertexId],
@@ -186,7 +186,7 @@ struct ColorCostFunction {
             double w3 = (i + 1 - uv[0]) * (uv[1] - j);
             double w4 = (uv[0] - i) * (uv[1] - j);
 
-            Vector3d true_color = (
+            true_color(
                 w1 * imageUtility.UVtoColor(i, j) +
                 w2 * imageUtility.UVtoColor(i + 1, j) +
                 w3 * imageUtility.UVtoColor(i, j + 1) +
@@ -211,7 +211,7 @@ struct ColorCostFunction {
         return true;
     }
 
-    static ceres::CostFunction* create(const std::unique_ptr<BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight) {
 
         return new ceres::AutoDiffCostFunction<ColorCostFunction, 3, N_SHAPE_PARAMS>(
             new ColorCostFunction(_pBfmManager, _imageUtility, vertexId, weight)
@@ -219,16 +219,10 @@ struct ColorCostFunction {
     }
 
     private:
-        const std::unique_ptr<BfmManager>& pBfmManager;
+        const std::shared_ptr<const BfmManager> pBfmManager;
         const ImageUtilityThing& imageUtility;
         size_t vertexId;
-        double weight;
-
-        // weights for color interpolation
-        double w1;
-        double w2;
-        double w3;
-        double w4;
+        const double weight;
         // target values of color
-        Vector3d true_color;
+        const Vector3d true_color;
 };
