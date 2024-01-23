@@ -188,7 +188,7 @@ public:
     }
 
     // Method to project XYZ onto the image space(pixels) using intrinsic parameters
-    Eigen::Vector2d XYZtoUV(const Eigen::Vector3d& xyz) {
+    Eigen::Vector2d XYZtoUV(const Eigen::Vector3d& xyz) const {
 
         Eigen::Vector3d image_coords = camera_matrix * xyz;
 
@@ -210,6 +210,10 @@ public:
 
     Eigen::VectorXd getXYZLandmarks() {
         return landmarks_xyz;
+    }
+
+    const Eigen::Matrix3d& getIntMat() const {
+        return camera_matrix;
     }
 };
 

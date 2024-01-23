@@ -22,6 +22,7 @@ public:
     Shader(const char* vertexPath, const char* fragmentPath)
     {
         // 1. retrieve the vertex/fragment source code from filePath
+        std::cout << "SHADER PATHS " << std::string(vertexPath) << "\n" << std::string(fragmentPath) << "\n";
         std::string vertexCode;
         std::string fragmentCode;
         std::ifstream vShaderFile;

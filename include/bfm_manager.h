@@ -164,8 +164,6 @@ public:
 	 */
 
 	void genTransMat();
-	void genRMat();
-	void genTVec();
 
 
 	/* @Function writePly
@@ -199,12 +197,15 @@ public:
 	 * 		bfmManager.clrExtParams();
 	 */
 
-	void clrExtParams();
-
 
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
+	void transformShapeExprBFM(const Matrix3d& rotation, const Vector3d& tranlation, const double& scale);
+	void genExtParams();
+	void initIdExtParams();
+	void setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale);
+	void setExtParams(const double* const extParams);
 
 	inline const std::string& getStrModelPath() const { return m_strModelPath; }
 
@@ -220,8 +221,8 @@ public:
 	inline std::array<double, N_EXT_PARAMS>& getMutableExtParams() { return m_aExtParams; }
 	//inline std::array<double, N_INT_PARAMS>& getMutableIntParams() { return m_aIntParams; }
 
-	inline double& getMutableScale() { return m_dSc; }
-	inline double getScale() const { return m_dSc; }
+	inline double& getMutableScale() { return m_dScale; }
+	inline double getScale() const { return m_dScale; }
 	inline const std::array<double, N_EXT_PARAMS>& getExtParams() { return m_aExtParams; }
 	// inline const std::array<double, N_INT_PARAMS>& getIntParams() { return m_aIntParams; }
 
@@ -232,22 +233,11 @@ public:
 	// inline double getFy() const { return m_aIntParams[1]; }
 	// inline double getCx() const { return m_aIntParams[2]; }
 	// inline double getCy() const { return m_aIntParams[3]; }
-	inline double getRoll() const { return m_aExtParams[0]; }
-	inline double getYaw() const { return m_aExtParams[1]; }
-	inline double getPitch() const { return m_aExtParams[2]; }
+
 	inline double getTx() const { return m_aExtParams[3]; }
 	inline double getTy() const { return m_aExtParams[4]; }
 	inline double getTz() const { return m_aExtParams[5]; }
-	void setRoll(double dRoll)   { m_aExtParams[0] = dRoll;  this->genRMat();}
-	void setYaw(double dYaw)     { m_aExtParams[1] = dYaw;   this->genRMat();}
-	void setPitch(double dPitch) { m_aExtParams[2] = dPitch; this->genRMat();}
-	void setRotation(double dRoll, double dYaw, double dPitch)
-	{
-		m_aExtParams[0] = dRoll;
-		m_aExtParams[1] = dYaw;
-		m_aExtParams[2] = dPitch;
-		this->genRMat();
-	}
+
 	inline void setTx(double tx) { m_aExtParams[3] = tx; m_vecT(0) = tx; }
 	inline void setTy(double ty) { m_aExtParams[4] = ty; m_vecT(1) = ty; }
 	inline void setTz(double tz) { m_aExtParams[5] = tz; m_vecT(2) = tz; }
@@ -304,17 +294,6 @@ public:
 		LOG(INFO) << "------------------------------------------------------------------------";
 		LOG(INFO) << "| Triangle list\t\t\t\t| 1\t\t| " << m_vecTriangleList(0);
 		LOG(INFO) << "------------------------------------------------------------------------";
-	}
-
-
-	inline void printExtParams() const
-	{
-		LOG(INFO) << "Rotation\t\tRoll:\t" << m_aExtParams[0] << " ( " << m_aExtParams[0] * 180.0 / M_PI << " )";
-		LOG(INFO) << "\t\t\tYaw:\t" << m_aExtParams[1] << " ( " << m_aExtParams[1] * 180.0 / M_PI << " )";
-		LOG(INFO) << "\t\t\tPitch:\t" << m_aExtParams[2] << " (" << m_aExtParams[2] * 180.0 / M_PI << " )";
-		LOG(INFO) << "Translation\tTx:\t" << m_aExtParams[3];
-		LOG(INFO) << "\t\t\tTy:\t" << m_aExtParams[4];
-		LOG(INFO) << "\t\t\tTz:\t" << m_aExtParams[5];
 	}
 
 
@@ -454,7 +433,8 @@ public:
     // Pitch rotates around x axis
 	Eigen::Matrix3d m_matR;
 	Eigen::Vector3d m_vecT;
-	double m_dSc = 0.0075;
+	double m_dScale = 0.0075;
+
 	std::array<double, N_EXT_PARAMS> m_aExtParams = { }; /* roll yaw pitch tx ty tz (initialized as 0)*/
 	// std::array<double, N_INT_PARAMS> m_aIntParams = { }; /* fx fy cx cy (initialized as 0)*/
 

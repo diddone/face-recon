@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cmath>
+#include <ceres/rotation.h>
 
 BfmManager::BfmManager(const std::string &strModelPath,
                        const std::string &strLandmarkIdxPath)
@@ -65,6 +66,8 @@ BfmManager::BfmManager(const std::string &strModelPath,
     inFile.close();
   }
 
+  this->initIdExtParams();
+
   this->alloc();
   this->load();
   this->extractLandmarks();
@@ -76,9 +79,11 @@ BfmManager::BfmManager(const std::string &strModelPath,
   }
 
   this->genAvgFace();
+  // here landmarks blendshapes are set
   this->genLandmarkBlendshape();
 }
 
+// allocates memory for bfm parameters
 void BfmManager::alloc() {
   LOG(INFO) << "Allocate memory for model.";
 
@@ -116,6 +121,7 @@ void BfmManager::alloc() {
   }
 }
 
+// load bfm parameters
 bool BfmManager::load() {
   LOG(INFO) << "Load model from disk.";
 
@@ -160,6 +166,9 @@ bool BfmManager::load() {
     LOG(ERROR) << "Failed to alloc";
     return false;
   }
+  // it is doing usefful thing
+  // trinalges list is transposed from the start
+  // but we want sequential order
   auto tmp = m_vecTriangleList;
   assert(m_vecTriangleList.size() % 3 == 0);
   uint indent = m_vecTriangleList.size() / 3;
@@ -257,28 +266,6 @@ void BfmManager::genLandmarkBlendshape() {
         m_vecLandmarkCurrentShape + m_vecLandmarkCurrentExpr;
   } else
     m_vecLandmarkCurrentBlendshape = m_vecLandmarkCurrentShape;
-}
-void BfmManager::genRMat() {
-  LOG(INFO) << "Generate rotation matrix.";
-
-  const double &roll = m_aExtParams[0];
-  const double &yaw = m_aExtParams[1];
-  const double &pitch = m_aExtParams[2];
-  m_matR = bfm_utils::Euler2Mat(roll, yaw, pitch, false);
-}
-
-void BfmManager::genTVec() {
-  LOG(INFO) << "Generate translation vector.";
-
-  const double &tx = m_aExtParams[3];
-  const double &ty = m_aExtParams[4];
-  const double &tz = m_aExtParams[5];
-  m_vecT << tx, ty, tz;
-}
-
-void BfmManager::genTransMat() {
-  this->genRMat();
-  this->genTVec();
 }
 
 void BfmManager::writePly(std::string fn, long mode) const {
@@ -394,6 +381,9 @@ void BfmManager::writePlyNew(std::string fn, long mode) const {
   out << "property float x\n";
   out << "property float y\n";
   out << "property float z\n";
+  out << "property uchar red\n";
+  out << "property uchar green\n";
+  out << "property uchar blue\n";
   out << "element face " << m_nFaces << "\n";
   out << "property list uchar int vertex_indices\n";
   out << "end_header\n";
@@ -402,26 +392,59 @@ void BfmManager::writePlyNew(std::string fn, long mode) const {
   for (int iVertice = 0; iVertice < m_nVertices; iVertice++) {
     float x, y, z;
     if (mode & ModelWriteMode_NoExpr) {
-      x = float(m_vecCurrentShape(iVertice * 3));
-      y = float(m_vecCurrentShape(iVertice * 3 + 1));
-      z = float(m_vecCurrentShape(iVertice * 3 + 2));
+      x = -1. * float(m_vecCurrentShape(iVertice * 3));
+      y = -1. * float(m_vecCurrentShape(iVertice * 3 + 1));
+      z = -1. * float(m_vecCurrentShape(iVertice * 3 + 2));
     } else {
-      x = float(m_vecCurrentBlendshape(iVertice * 3));
-      y = float(m_vecCurrentBlendshape(iVertice * 3 + 1));
-      z = float(m_vecCurrentBlendshape(iVertice * 3 + 2));
+      x = -1. * float(m_vecCurrentBlendshape(iVertice * 3));
+      y = -1. * float(m_vecCurrentBlendshape(iVertice * 3 + 1));
+      z = -1. * float(m_vecCurrentBlendshape(iVertice * 3 + 2));
+    }
+
+    // TODO add translation and rotation?
+    unsigned char r, g, b;
+    auto d_to_ui = [](const double& x) { return uint(round(x * 255)); };
+    if (mode & ModelWriteMode_PickLandmark) {
+      bool bIsLandmark = false;
+      for (const auto &bfmIdx : m_mapLandmarkIndices) {
+        if (bfmIdx == iVertice) {
+          bIsLandmark = true;
+          break;
+        }
+      }
+      if (bIsLandmark) {
+        r = 255;
+        g = 0;
+        b = 0;
+        cnt++;
+      }
+    } else {
+      r = d_to_ui(m_vecCurrentTex(iVertice * 3));
+      g = d_to_ui(m_vecCurrentTex(iVertice * 3 + 1));
+      b = d_to_ui(m_vecCurrentTex(iVertice * 3 + 2));
     }
 
     out.write((char *)&x, sizeof(x));
     out.write((char *)&y, sizeof(y));
     out.write((char *)&z, sizeof(z));
+    out.write((char *)&r, sizeof(r));
+    out.write((char *)&g, sizeof(g));
+    out.write((char *)&b, sizeof(b));
+  }
+
+  if ((mode & ModelWriteMode_PickLandmark) &&
+      cnt != m_mapLandmarkIndices.size()) {
+    LOG(ERROR) << "Pick too less landmarks.";
+    LOG(ERROR) << "Number of picked points is " << cnt;
+    throw std::runtime_error("Pick too less landmarks");
   }
 
   unsigned char N_VER_PER_FACE = 3;
   for (int iFace = 0; iFace < m_nFaces; iFace++) {
     out.write((char *)&N_VER_PER_FACE, sizeof(N_VER_PER_FACE));
-    int x = m_vecTriangleList(iFace * 3);
-    int y = m_vecTriangleList(iFace * 3 + 1);
-    int z = m_vecTriangleList(iFace * 3 + 2);
+    uint x = m_vecTriangleList(iFace * 3);
+    uint y = m_vecTriangleList(iFace * 3 + 1);
+    uint z = m_vecTriangleList(iFace * 3 + 2);
 
     out.write((char *)&x, sizeof(x));
     out.write((char *)&y, sizeof(y));
@@ -510,8 +533,96 @@ void BfmManager::writeLandmarkPly(std::string fn) const {
   out.close();
 }
 
-void BfmManager::clrExtParams() {
-  m_aExtParams.fill(0.0);
-  this->genTransMat();
-  this->genFace();
+void BfmManager::initIdExtParams() {
+		m_matR = Matrix3d::Identity();
+		m_vecT.fill(0.);
+		m_dScale = 1.;
+
+    this->genExtParams();
 }
+void BfmManager::setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale) {
+		// matrix may have negative determinant, then we need to change
+    // bfm coefs inplace
+    if (newR.determinant() < 0) {
+        Eigen::DiagonalMatrix<double, 3> diag({1., -1., 1.});
+        m_matR = newR * diag;
+        transformShapeExprBFM(diag, Vector3d::Zero(), 1.);
+        this->genFace();
+    } else {
+      m_matR = newR;
+    }
+
+    m_vecT = newT;
+	m_dScale = newScale;
+
+    this->genExtParams();
+}
+
+void BfmManager::setExtParams(const double* const extParams) {
+    for (size_t i = 0; i < m_aExtParams.size(); ++i) {
+        m_aExtParams[i] = extParams[i];
+    }
+    genTransMat();
+}
+
+void BfmManager::genExtParams() {
+    ceres::RotationMatrixToAngleAxis(m_matR.data(), &m_aExtParams[0]);
+    m_aExtParams[3] = m_vecT[0];
+    m_aExtParams[4] = m_vecT[1];
+    m_aExtParams[5] = m_vecT[2];
+    m_aExtParams[6] = m_dScale;
+}
+
+void BfmManager::genTransMat() {
+  LOG(INFO) << "Generate rotation, tranlation and scale.";
+
+  double* startPointer = &m_aExtParams[0];
+  double* rotation = startPointer;
+  double* translation = startPointer + 3;
+  double* scale = startPointer + 6;
+
+  double rotationMatrix[9];
+  ceres::AngleAxisToRotationMatrix(rotation, rotationMatrix);
+  m_matR(0, 0) = rotationMatrix[0];	m_matR(0, 1) = rotationMatrix[3];	m_matR(0, 2) = rotationMatrix[6];
+  m_matR(1, 0) = rotationMatrix[1];	m_matR(1, 1) = rotationMatrix[4];	m_matR(1, 2) = rotationMatrix[7];
+  m_matR(2, 0) = rotationMatrix[2];	m_matR(2, 1) = rotationMatrix[5];	m_matR(2, 2) = rotationMatrix[8];
+
+  const double &tx = translation[3];
+  const double &ty = translation[4];
+  const double &tz = translation[5];
+  m_vecT << tx, ty, tz;
+
+  m_dScale = scale[0];
+}
+
+void BfmManager::transformShapeExprBFM(const Matrix3d& rotation, const Vector3d& translation, const double& scale) {
+    Matrix3d R = scale * rotation;
+
+    Vector3d mu;
+    Matrix3d M;
+    for (int iVertice = 0; iVertice < m_nVertices; iVertice++) {
+        Vector3d shapeMu(m_vecShapeMu[3 * iVertice], m_vecShapeMu[3 * iVertice + 1], m_vecShapeMu[3 * iVertice + 2]);
+        m_vecShapeMu.segment(3 * iVertice, 3) = R * shapeMu + translation;
+        Vector3d newPc;
+        for(size_t i = 0; i < m_nIdPcs; ++i) {
+            newPc = R * Vector3d(
+              m_matShapePc(3 * iVertice, i),
+              m_matShapePc(3 * iVertice + 1, i),
+              m_matShapePc(3 * iVertice + 2, i)
+            );
+            m_matShapePc.block(3 * iVertice, i, 3, 1) = newPc;
+        }
+
+        Vector3d exprMu(m_vecExprMu[3 * iVertice], m_vecExprMu[3 * iVertice + 1], m_vecExprMu[3 * iVertice + 2]);
+        m_vecExprMu.segment(3 * iVertice, 3) = R * exprMu;
+        for(size_t i = 0; i < m_nExprPcs; ++i) {
+            newPc = R * Vector3d(
+              m_matExprPc(3 * iVertice, i),
+              m_matExprPc(3 * iVertice + 1, i),
+              m_matExprPc(3 * iVertice + 2, i)
+            );
+            m_matExprPc.block(3 * iVertice, i, 3, 1) = newPc;
+        }
+    }
+}
+

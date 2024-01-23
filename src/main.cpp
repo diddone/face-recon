@@ -13,6 +13,10 @@
 #include <vector>
 
 #include "procrustes_aligner.h"
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
+
+#include "visualizer.h"
 
 const std::string LOG_PATH("./log");
 
@@ -57,11 +61,59 @@ int main(int argc, char *argv[])
     // Procruster: XYZ vector from BFM manager and XYZ vector from ImageUtility
     //
     ProcrustesAligner procruster;
-    Matrix4d initPose = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
 
+    // std::cout<<"Landmark Blendshape \n";
+    // for (int i = 0; i <5; ++i) {
+    //     std::cout << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i] << " "
+    //     << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i + 1] << " "
+    //     << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i + 2] << std::endl;
+    // }
+
+    // std::cout<<"Blendshape \n";
+    // for (int i = 0; i <5; ++i) {
+    //     std::cout << pBfmManager->m_vecCurrentBlendshape[3 * i] << " "
+    //     << pBfmManager->m_vecCurrentBlendshape[3 * i + 1] << " "
+    //     << pBfmManager->m_vecCurrentBlendshape[3 * i + 2] << std::endl;
+    // }
+    ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
+
+    pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
+    // pBfmManager->genAvgFace();
+    //pBfmManager->writePly("avg_face_transformed.ply");
+    //pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
+
+    Visualizer visualizer(argc, *argv);
+    visualizer.setupImage(imageFile);
+    visualizer.setupFace(pBfmManager);
+    while (visualizer.shouldRenderFrame()) {
+        visualizer.setupFrame();
+        visualizer.renderImage();
+        visualizer.renderFaceMesh();
+        visualizer.finishFrame();
+    }
+
+    visualizer.closeOpenGL();
+    // pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
+    // pBfmManager->transformShapeExprBFM(transform.rotation, transform.translation, transform.scale);
+    // pBfmManager->genAvgFace();
+    // pBfmManager->writePly("avg_face_proc.ply", ModelWriteMode_None);
+
+    // std::cout << pBfmManager->getMatR() << "\n";
+    // std::cout << pBfmManager->getVecT() << "\n";
+    // std::cout << pBfmManager->getScale() << "\n";
+    // for (size_t k = 0; k < N_EXT_PARAMS; ++k) {
+    //     std::cout << pBfmManager->getExtParams()[k] << "\n";
+    // }
+    // pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
+    // std::cout << pBfmManager->getMatR() << "\n";
+    // std::cout << pBfmManager->getVecT() << "\n";
+    // std::cout << pBfmManager->getScale() << "\n";
+    // for (size_t k = 0; k < N_EXT_PARAMS; ++k) {
+    //     std::cout << pBfmManager->getExtParams()[k] << "\n";
+    // }
     // pBfmManager->m_vecLandmarkCurrentBlendshape;
-    pBfmManager->writeLandmarkPly("out_landmarks.ply");
-	pBfmManager->writePly("rnd_face.ply", ModelWriteMode_None);
+    // pBfmManager->writeLandmarkPly("out_landmarks.ply");
+	// pBfmManager->writePly("rnd_face.ply", ModelWriteMode_None);
 
 	google::ShutdownGoogleLogging();
 	return 0;

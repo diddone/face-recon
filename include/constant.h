@@ -11,14 +11,14 @@
 	#define BFM_DEBUG(fmt, ...) printf(fmt, ##__VA_ARGS__);
 #else
 	#define BFM_DEBUG(fmt, ...)
-#endif 
+#endif
 #define BFM_ERROR(fmt, ...) printf("\033[31m" "[Error] " fmt "\033[0m", ##__VA_ARGS__);
 
 
 // Detailed see function `writePly`
 enum ModelWriteMode {
 	ModelWriteMode_Invalid = 0L << 0,
-	ModelWriteMode_None = 1L << 0, 
+	ModelWriteMode_None = 1L << 0,
 	ModelWriteMode_PickLandmark = 1L << 1,
 	ModelWriteMode_CameraCoord = 1L << 2,
 	ModelWriteMode_NoExpr = 1L << 3,
@@ -34,8 +34,11 @@ enum BfmStatus {
 
 // Constant
 const unsigned int N_DLIB_LANDMARKS = 68;
-const unsigned int N_EXT_PARAMS = 6;	// roll, yaw, pitch, tx, ty, tz, s
+const unsigned int N_EXT_PARAMS = 7;	// roll, yaw, pitch, tx, ty, tz, s
 const unsigned int N_INT_PARAMS = 4;	// fx, fy, cx, cy
 
+// const unsigned int N_SHAPE_PARAMS = 196;
+unsigned const int N_SHAPE_PARAMS = 199;
+unsigned const int N_EXPR_PARAMS = 100;
 
 #endif // BFM_CONSTANT_H

@@ -20,10 +20,10 @@ public:
         transformationMatrix = Eigen::Matrix4d::Identity();
         initializeOpenGL();
 
-        imageShader = Shader("/home/david/Documents/tum/projects/3d/face-recon/src/shaders/4.1.texture.vs",
-                             "/home/david/Documents/tum/projects/3d/face-recon/src/shaders/4.1.texture.fs");
-        faceMeshShader = Shader("/home/david/Documents/tum/projects/3d/face-recon/src/shaders/4.1.texture.mesh.vs",
-                                "/home/david/Documents/tum/projects/3d/face-recon/src/shaders/4.1.texture.mesh.fs");
+        imageShader = Shader("../src/shaders/4.1.texture.vs",
+                             "../src/shaders/4.1.texture.fs");
+        faceMeshShader = Shader("../src/shaders/4.1.texture.mesh.vs",
+                                "../src/shaders/4.1.texture.mesh.fs");
     }
 
     Mesh face_mesh;
@@ -189,8 +189,13 @@ public:
         std::vector<Vertex> face_vertices;
         std::vector<unsigned int> face_indices;
 
+        Matrix3d R = pBfmManager->getMatR() * pBfmManager->getScale();
+        Vector3d t = pBfmManager->getVecT();
+
+
         for (size_t iVertex = 0; iVertex < pBfmManager->m_nVertices; iVertex++) {
-            float x, y, z, r, g, b;
+            double x, y, z;
+            float r, g, b;
 
             x = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3));
             y = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3 + 1));

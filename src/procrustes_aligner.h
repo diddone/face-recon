@@ -6,53 +6,87 @@
 using namespace Eigen;
 
 //TODO: Add scaling
+
+struct ExtrinsicTransform {
+	Eigen::Matrix3d rotation;
+	Eigen::Vector3d translation;
+	double scale;
+};
+
 class ProcrustesAligner {
 public:
-	Matrix4d estimatePose(const VectorXd& sourcePoints_, const VectorXd& targetPoints_) {
+	ExtrinsicTransform estimatePose(const VectorXd& sourcePoints_, const VectorXd& targetPoints_) {
 		// ASSERT(sourcePoints.size() == targetPoints.size() && "The number of source and target points should be the same, since every source point is matched with corresponding target point.");
-		// TODO: Use scaling matrix
-		// We estimate the pose between source and target points using Procrustes algorithm.
-		// Our shapes have the same scale, therefore we don't estimate scale. We estimated rotation and translation
-		// from source points to target points.
+		// Method from:
+    	// Umeyama et al. Least-squares estimation of transformation parameters between two point patterns
+    	// \\ 1991, Pattern Analysis and Machine Intelligence, IEEE Transactions on
+    	// http://web.stanford.edu/class/cs273/refs/umeyama.pdf
 
 		ASSERT((sourcePoints_.size() == targetPoints_.size()));
 		size_t numPoints = sourcePoints_.size() / 3;
-		VectorXd sourcePoints(sourcePoints_.size()), targetPoints(targetPoints_.size());
-		size_t cnt = 0;
-		for (size_t i = 0; i < numPoints; ++i) {
-			std::cout << "Source" << sourcePoints_[3 * i] << " " << sourcePoints_[3 * i + 1] << " " << sourcePoints_[3 * i + 2] << "\n";
-			std::cout << "Target" << targetPoints_[3 * i] << " " << targetPoints_[3 * i + 1] << " " << targetPoints_[3 * i + 2] << "\n";
-			if (!std::isnan(sourcePoints_[3 * i]) &&
-				!std::isnan(sourcePoints_[3 * i + 1]) &&
-				!std::isnan(sourcePoints_[3 * i + 2])) {
-				for (size_t k = 0; k < 3; ++k) {
-					sourcePoints[3 * cnt + k] = sourcePoints_[3 * i + k];
-					targetPoints[3 * cnt + k] = targetPoints_[3 * i + k];
-				}
-				++cnt;
+		size_t nValidPoints = 0;
+		// there can be nans in image data
+        for (size_t i = 0; i < numPoints; ++i) {
+			// std::cout << "Source " << sourcePoints_[3 * i] << " "
+            // << sourcePoints_[3 * i+1] << " "
+            // << sourcePoints_[3 * i+2] << std::endl;
+            // std::cout << "Target " << targetPoints_[3 * i] << " "
+            // << targetPoints_[3 * i+1] << " "
+            // << targetPoints_[3 * i+2] << std::endl;
+            if (!std::isnan(targetPoints_[3 * i]) &&
+				!std::isnan(targetPoints_[3 * i + 1]) &&
+				!std::isnan(targetPoints_[3 * i + 2])) {
+				++nValidPoints;
 			}
 		}
-		sourcePoints.resize(3 * cnt);
-		targetPoints.resize(3 * cnt);
-
-		double scalingFactor = estimateScaling(sourcePoints, targetPoints);
-		std::cout << "Scaling factor: " << scalingFactor << std::endl;
+        std::cout << "Number of valid points in procrusters " << nValidPoints << std::endl;
+        VectorXd sourcePoints(3 * nValidPoints), targetPoints(3 * nValidPoints);
+        size_t cnt = 0;
+        for (size_t i = 0; i < numPoints; ++i) {
+			if (!std::isnan(targetPoints_[3 * i]) &&
+				!std::isnan(targetPoints_[3 * i + 1]) &&
+				!std::isnan(targetPoints_[3 * i + 2])) {
+                for(size_t k = 0; k < 3; ++k) {
+                    sourcePoints[3 * cnt + k] = sourcePoints_[3 * i + k];
+                    targetPoints[3 * cnt + k] = targetPoints_[3 * i + k];
+                }
+                ++cnt;
+			}
+		}
 
 		auto sourceMean = computeMean(sourcePoints);
 		auto targetMean = computeMean(targetPoints);
 
-		Matrix3d rotation = estimateRotation(sourcePoints, sourceMean, targetPoints, targetMean);
-		std::cout << "rotation matrix " << rotation << std::endl;
+		Matrix3d covMat = getCovMatrix(sourcePoints, sourceMean, targetPoints, targetMean);
+		JacobiSVD<Matrix3d> svd(covMat, ComputeFullV | ComputeFullU);
+		Matrix3d U = svd.matrixU();
+		Matrix3d V = svd.matrixV();
 
-		Vector3d translation = computeTranslation(sourceMean, targetMean, rotation);
-		std::cout << "translation vector " << translation << std::endl;
+		double sigma_sq = getSigmaSquared(sourcePoints, sourceMean);
 
-		// You can access parts of the matrix with .block(start_row, start_col, num_rows, num_cols) = elements
-		Matrix4d estimatedPose = Matrix4d::Identity();
-		estimatedPose.block(0, 0, 3, 3) = rotation;
-		estimatedPose.block(0, 3, 3, 1) = translation;
-		std::cout << "pose matrix " << estimatedPose << std::endl;
-		return estimatedPose;
+		double scale = 1 / sigma_sq * (svd.singularValues().sum());
+		Matrix3d rotation = U * V.transpose();
+		Vector3d translation = targetMean - scale * (rotation * sourceMean);
+
+		std::cout << "Procrustes scale factor" << scale << std::endl;
+		std::cout << "Procrustes Rotation matrix " << rotation << std::endl;
+        std::cout << "Procrustes Rotation matrix Determinant" << rotation.determinant() << std::endl;
+		std::cout << "Procrustes translation vector " << translation << std::endl;
+
+
+		for (size_t i = 0; i < sourcePoints.size() / 3; ++i) {
+			Vector3d x = {sourcePoints[3 * i], sourcePoints[3 * i + 1], sourcePoints[3 * i + 2]};
+			Vector3d y = {targetPoints[3 * i], targetPoints[3 * i + 1], targetPoints[3 * i + 2]};
+			Vector3d new_x = scale * rotation * x + translation;
+
+            // std::cout << y[0] << " " << y[1] << " " << y[2] << "\n";
+            // std::cout << "X Y New_x \n";
+			// for (uint k = 0; k < 3; ++k) {
+			// 	std::cout << " " << x[k] << " " << y[k] << " " << new_x[k] << "\n";
+			// }
+			// std::cout << "--------------------";
+		}
+		return ExtrinsicTransform{rotation, translation, scale};
 	}
 
 private:
@@ -77,41 +111,8 @@ private:
 		return meanVector;
 	}
 
-	// Compute center of gravity for 2 objects
-	// Scale one object to match the avg. distance from all vertices to the center of gravity
-	double estimateScaling(const VectorXd& source_points, const VectorXd& target_points){
-		//for source points
-		Vector3d centerofMass_source = computeMean(source_points);
-		double distancetoCenter_source = calculateAvgDistancetoCenter(source_points, centerofMass_source);
 
-		//for target points
-		Vector3d centerofMass_target = computeMean(target_points);
-		double distancetoCenter_target = calculateAvgDistancetoCenter(target_points, centerofMass_target);
-
-		double scaling_factor = distancetoCenter_source / distancetoCenter_target;
-
-		// float s_x = distancetoCenter_source.x / distancetoCenter_target.x;
-		// float s_y = distancetoCenter_source.y / distancetoCenter_target.y;
-		// float s_z = distancetoCenter_source.z / distancetoCenter_target.z;
-
-		// // Create the scaling matrix
-    	// Matrix3f scalingMatrix;
-    	// scalingMatrix.m[0][0] = s_x;
-    	// scalingMatrix.m[1][1] = s_y;
-    	// scalingMatrix.m[2][2] = s_z;
-
-    	// // Set the rest of the elements to 0
-    	// for (int i = 0; i < 3; ++i) {
-        // 	for (int j = 0; j < 3; ++j) {
-        //     	if (i != j) {
-        //         	scalingMatrix.m[i][j] = 0.0f;
-        //     	}
-        // 	}
-    	// }
-		return scaling_factor;
-	}
-
-	Matrix3d estimateRotation(const VectorXd& source_points, const Vector3d& sourceMean, const VectorXd& target_points, const Vector3d& targetMean) {
+	Matrix3d getCovMatrix(const VectorXd& source_points, const Vector3d& sourceMean, const VectorXd& target_points, const Vector3d& targetMean) {
 		// To compute the singular value decomposition you can use JacobiSVD() from Eigen.
 		// Hint: You can initialize an Eigen matrix with "MatrixXf m(num_rows,num_cols);" and access/modify parts of it using the .block() method (see above).
 
@@ -125,28 +126,10 @@ private:
         	targetMatrix.block(i, 0, 1, 3) = (target_points.segment(i * 3, 3) - targetMean).transpose();
     	}
 
-		JacobiSVD<Matrix3d> svd(targetMatrix.transpose() * sourceMatrix, ComputeFullV | ComputeFullU);
-		Matrix3d U = svd.matrixU();
-		Matrix3d V = svd.matrixV();
-
-		double det = (U * V.transpose()).determinant();
-		Matrix3d D = Matrix3d::Identity();
-		if (det < 0) {
-			D(2,2) = -1.;
-		}
-
-		Matrix3d rotation = U * D * V.transpose();
-
-		return rotation;
+		return (1./ nPoints) * targetMatrix.transpose() * sourceMatrix;
 	}
 
-	Vector3d computeTranslation(const Vector3d& sourceMean, const Vector3d& targetMean, const Matrix3d& rotation) {
-		// Vector3d translation = Vector3d::Zero();
-		Vector3d translation = targetMean - rotation * sourceMean;
-        return translation;
-	}
-
-	double calculateAvgDistancetoCenter(const VectorXd& points, Vector3d centerOfMass){
+	double getSigmaSquared(const VectorXd& points, Vector3d mean){
 		// std::cout << "Center of mass: " << centerOfMass[0] << " " << centerOfMass[1] << " " << centerOfMass[2] << std::endl;
 
 		double avgDistance = 0.0;
@@ -157,13 +140,13 @@ private:
 		double y = 0.0f;
 		double z = 0.0f;
 		for (int i = 0; i < numPoints; i++){
-			x += points(i * 3);
-			y += points(i * 3 + 1);
-			z += points(i * 3 + 2);
+			x = points(i * 3);
+			y = points(i * 3 + 1);
+			z = points(i * 3 + 2);
 
-			totalDistance +=  std::sqrt(std::pow(x - centerOfMass[0], 2) +
-										std::pow(y - centerOfMass[1], 2) +
-										std::pow(z - centerOfMass[2], 2));
+			totalDistance += std::pow(x - mean[0], 2) +
+								std::pow(y - mean[1], 2) +
+								std::pow(z - mean[2], 2);
 
 			// std::cout << totalDistance << std::endl;
 		}
