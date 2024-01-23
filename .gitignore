@@ -7,3 +7,4 @@ Data/*.h5
 Data/PublicMM1/
 Data/rgbd_face_dataset_training/
 .cache/
+*.ipynb

@@ -201,11 +201,13 @@ public:
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
-	void transformShapeExprBFM(const Matrix3d& rotation, const Vector3d& tranlation, const double& scale);
+	void transformShapeExprBFM();
 	void genExtParams();
-	void initIdExtParams();
+	void setIdExtParams();
 	void setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale);
 	void setExtParams(const double* const extParams);
+    template <typename T>
+    void applyExtTransform(T* inputPoint, T* outputPoint) const;
 
 	inline const std::string& getStrModelPath() const { return m_strModelPath; }
 

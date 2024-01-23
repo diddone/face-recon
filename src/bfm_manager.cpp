@@ -66,7 +66,7 @@ BfmManager::BfmManager(const std::string &strModelPath,
     inFile.close();
   }
 
-  this->initIdExtParams();
+  this->setIdExtParams();
 
   this->alloc();
   this->load();
@@ -533,20 +533,24 @@ void BfmManager::writeLandmarkPly(std::string fn) const {
   out.close();
 }
 
-void BfmManager::initIdExtParams() {
-		m_matR = Matrix3d::Identity();
-		m_vecT.fill(0.);
-		m_dScale = 1.;
-
+void BfmManager::setIdExtParams() {
+	m_matR = Matrix3d::Identity();
+	m_vecT.fill(0.);
+	m_dScale = 1.;
+    m_aExtParams.fill(0);
     this->genExtParams();
 }
 void BfmManager::setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale) {
 		// matrix may have negative determinant, then we need to change
     // bfm coefs inplace
     if (newR.determinant() < 0) {
+        std::cout << "WARNING: Rotation matrix has negative determinant\n";
+        this->setIdExtParams();
         Eigen::DiagonalMatrix<double, 3> diag({1., -1., 1.});
+        m_matR = diag;
+        // change bfm parameters to have rotation matrix with det=1
+        transformShapeExprBFM();
         m_matR = newR * diag;
-        transformShapeExprBFM(diag, Vector3d::Zero(), 1.);
         this->genFace();
     } else {
       m_matR = newR;
@@ -595,9 +599,9 @@ void BfmManager::genTransMat() {
   m_dScale = scale[0];
 }
 
-void BfmManager::transformShapeExprBFM(const Matrix3d& rotation, const Vector3d& translation, const double& scale) {
-    Matrix3d R = scale * rotation;
-
+void BfmManager::transformShapeExprBFM() {
+    Matrix3d R = m_dScale * m_matR;
+    auto translation = m_vecT;
     Vector3d mu;
     Matrix3d M;
     for (int iVertice = 0; iVertice < m_nVertices; iVertice++) {
@@ -624,5 +628,21 @@ void BfmManager::transformShapeExprBFM(const Matrix3d& rotation, const Vector3d&
             m_matExprPc.block(3 * iVertice, i, 3, 1) = newPc;
         }
     }
+
+    this->setIdExtParams();
+}
+
+template <typename T>
+void BfmManager::applyExtTransform(T* inputPoint, T* outputPoint) const {
+    const T* rotation = &m_aExtParams[0];
+    const T* translation = rotation + 3;
+    const T* scale = rotation + 6;
+
+    T temp[3];
+    ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+
+    outputPoint[0] = scale[0] * temp[0] + translation[0];
+    outputPoint[1] = scale[0] * temp[1] + translation[1];
+    outputPoint[2] = scale[0] * temp[2] + translation[2];
 }
 
