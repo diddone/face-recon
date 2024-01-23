@@ -14,6 +14,6 @@ void main()
 	gl_Position.x = gl_Position.x / gl_Position.z;
 	gl_Position.y = gl_Position.y / gl_Position.z;
 
-	gl_Position.z = 0.50001;
+	// gl_Position.z = 0.50001;
 	outColor = aColor;
 }
