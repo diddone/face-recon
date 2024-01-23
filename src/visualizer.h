@@ -164,16 +164,13 @@ public:
         stbi_image_free(data);
     }
 
-    bool setupFace(shared_ptr<BfmManager> pBfmManager) {
-        double scale = 0.0010931;
-        Eigen::Matrix3d rotation;
-        rotation << 0.999895, 0.0143569, -0.00170876,
-                0.0144556, -0.99044, 0.137185,
-                0.000277125, -0.137195, -0.990544;
-        Eigen::Vector3d translation(-0.0958164, -0.0159176, 0.833721);
+    bool setupFace(std::shared_ptr<BfmManager> pBfmManager) {
+        double scale = pBfmManager->m_dScale;
+        Eigen::Matrix3d rotation = pBfmManager->m_matR;
 
-        transformationMatrix.block<3,3>(0,0).diagonal() *= scale;
-        transformationMatrix.block<3,3>(0,0) *= rotation;
+        Eigen::Vector3d translation = pBfmManager->m_vecT;
+
+        transformationMatrix.block<3,3>(0,0) *= (scale * rotation);
         transformationMatrix.block<3,1>(0,3) = translation;
 
 
@@ -189,12 +186,8 @@ public:
         std::vector<Vertex> face_vertices;
         std::vector<unsigned int> face_indices;
 
-        Matrix3d R = pBfmManager->getMatR() * pBfmManager->getScale();
-        Vector3d t = pBfmManager->getVecT();
-
-
         for (size_t iVertex = 0; iVertex < pBfmManager->m_nVertices; iVertex++) {
-            double x, y, z;
+            float x, y, z;
             float r, g, b;
 
             x = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3));

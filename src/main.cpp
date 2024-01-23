@@ -17,6 +17,7 @@
 #include <ceres/rotation.h>
 
 #include "visualizer.h"
+#include "optimizer_class.h"
 
 const std::string LOG_PATH("./log");
 
@@ -47,9 +48,9 @@ int main(int argc, char *argv[])
     LOG(INFO) << "Logging initialized successfully.";
 
     // intrinsics parameters
-    std::string cameraInfoPath((data_path / ("rgbd_face_dataset_training/camera_info.yaml")).string());
+    std::string cameraInfoPath((data_path / "camera_info.yaml").string());
 	ImageUtilityThing imageUtility(cameraInfoPath);
-	std::unique_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
+	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
     std::string imageFile = (data_path/"image.png").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
@@ -61,20 +62,6 @@ int main(int argc, char *argv[])
     // Procruster: XYZ vector from BFM manager and XYZ vector from ImageUtility
     //
     ProcrustesAligner procruster;
-
-    // std::cout<<"Landmark Blendshape \n";
-    // for (int i = 0; i <5; ++i) {
-    //     std::cout << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i] << " "
-    //     << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i + 1] << " "
-    //     << pBfmManager->m_vecLandmarkCurrentBlendshape[3 * i + 2] << std::endl;
-    // }
-
-    // std::cout<<"Blendshape \n";
-    // for (int i = 0; i <5; ++i) {
-    //     std::cout << pBfmManager->m_vecCurrentBlendshape[3 * i] << " "
-    //     << pBfmManager->m_vecCurrentBlendshape[3 * i + 1] << " "
-    //     << pBfmManager->m_vecCurrentBlendshape[3 * i + 2] << std::endl;
-    // }
     ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
 
     pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
@@ -93,27 +80,6 @@ int main(int argc, char *argv[])
     }
 
     visualizer.closeOpenGL();
-    // pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
-    // pBfmManager->transformShapeExprBFM(transform.rotation, transform.translation, transform.scale);
-    // pBfmManager->genAvgFace();
-    // pBfmManager->writePly("avg_face_proc.ply", ModelWriteMode_None);
-
-    // std::cout << pBfmManager->getMatR() << "\n";
-    // std::cout << pBfmManager->getVecT() << "\n";
-    // std::cout << pBfmManager->getScale() << "\n";
-    // for (size_t k = 0; k < N_EXT_PARAMS; ++k) {
-    //     std::cout << pBfmManager->getExtParams()[k] << "\n";
-    // }
-    // pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
-    // std::cout << pBfmManager->getMatR() << "\n";
-    // std::cout << pBfmManager->getVecT() << "\n";
-    // std::cout << pBfmManager->getScale() << "\n";
-    // for (size_t k = 0; k < N_EXT_PARAMS; ++k) {
-    //     std::cout << pBfmManager->getExtParams()[k] << "\n";
-    // }
-    // pBfmManager->m_vecLandmarkCurrentBlendshape;
-    // pBfmManager->writeLandmarkPly("out_landmarks.ply");
-	// pBfmManager->writePly("rnd_face.ply", ModelWriteMode_None);
 
 	google::ShutdownGoogleLogging();
 	return 0;
