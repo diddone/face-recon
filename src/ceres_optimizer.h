@@ -7,7 +7,7 @@
 #include "utils.h"
 
 //include ceres cost functions
-#include "cost_functions.h"
+#include "cost_functions.cpp"
 
 class CeresOptimizer{
     public: 
