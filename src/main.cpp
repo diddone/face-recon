@@ -13,11 +13,12 @@
 #include <vector>
 
 #include "procrustes_aligner.h"
-#include <ceres/ceres.h>
-#include <ceres/rotation.h>
 
 #include "visualizer.h"
-#include "optimizer_class.h"
+
+#include "ceres_optimizer.h"
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
 
 const std::string LOG_PATH("./log");
 
@@ -80,6 +81,12 @@ int main(int argc, char *argv[])
     }
 
     visualizer.closeOpenGL();
+
+    //Sparse optimization
+    //TODO: Initialize necessary parameters
+    
+    ceres::Solver::Summary summary = CeresOptimizer::optimize(pBfmManager, imageUtility, cameraMatrix, vertexIds, landmarkUVs, weights, pose, shapeCoefs, exprCoefs, texCoefs);
+    std::cout << summary.FullReport() << std::endl;
 
 	google::ShutdownGoogleLogging();
 	return 0;
