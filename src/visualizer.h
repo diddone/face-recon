@@ -15,8 +15,7 @@
 
 class Visualizer {
 public:
-    Visualizer(int _argc, char *_argv) : argc(_argc) {
-        *argv = _argv;
+    Visualizer(int _argc, char *_argv) {
         transformationMatrix = Eigen::Matrix4d::Identity();
         initializeOpenGL();
 
@@ -40,8 +39,6 @@ private:
     unsigned int imageTexture;
     Shader imageShader;
     Shader faceMeshShader;
-    int argc;
-    char *argv[];
 
     bool initializeOpenGL() {
         // glfw: initialize and configure
@@ -164,7 +161,7 @@ public:
         stbi_image_free(data);
     }
 
-    bool setupFace(std::shared_ptr<BfmManager> pBfmManager) {
+    bool setupFace(const std::shared_ptr<BfmManager>& pBfmManager) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         double scale = pBfmManager->m_dScale;
@@ -180,22 +177,14 @@ public:
                 0, 1052.020917785721, 536.2206151001486, 0.,
                 0, 0, 1, 0.,
                 0., 0., 0., 1.;
-        double H = 1080.;
-        double W = 1920.;
+        double H = imageHeight;
+        double W = imageWidth;
         transf << (2. / W), 0., -1., 0.,
                 0., (-2. / W), (H / W), 0.,
                 0., 0., 1., 0.,
                 0., 0., 0., 1.;
 
         transformationMatrix = transf * intr * transformationMatrix;
-//        float left = -250, right = 250, top = 250, bottom = -250;
-//        float zFar = 1000;
-//        float zNear = 0.01;
-//
-//        Eigen::Matrix4d projectionMatrix;
-//        projectionMatrix << 2 / (right - left), 0, 0, 0, 0, 2 / (top - bottom), 0,
-//                -(top + bottom) / (top - bottom), 0, 0, -2 / (zFar - zNear),
-//                -(zFar + zNear) / (zFar - zNear), 0, 0, 0, 1;
 
         std::vector<Vertex> face_vertices;
         std::vector<unsigned int> face_indices;

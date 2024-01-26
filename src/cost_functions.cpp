@@ -2,6 +2,8 @@
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
 #include <math.h>
+
+#include <utility>
 #include "utils.h"
 
 template <typename T>
@@ -21,10 +23,10 @@ void applyExtTransform(const T* extParams, T* inputPoint, T* outputPoint) {
 struct SparseCostFunction
 {
 	SparseCostFunction(
-        const std::shared_ptr<const BfmManager> _pBfmManager, const Matrix3d& _cameraMatrix,
-        size_t landmarkInd, const Eigen::Vector2i landmarkUV, double weight
+        const std::shared_ptr<const BfmManager>& _pBfmManager, const Matrix3d& _cameraMatrix,
+        size_t landmarkInd, Eigen::Vector2i  landmarkUV, double weight
     ):
-	pBfmManager(_pBfmManager), cameraMatrix(_cameraMatrix), landmarkInd(landmarkInd), landmarkUV(landmarkUV), weight(weight){}
+	pBfmManager(_pBfmManager), cameraMatrix(_cameraMatrix), landmarkInd(landmarkInd), landmarkUV(std::move(landmarkUV)), weight(weight){}
 
 
 	template<typename T>
@@ -60,7 +62,7 @@ struct SparseCostFunction
 		return true;
 	}
 
-    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const Matrix3d& _cameraMatrix, size_t landmarkInd, const Eigen::Vector2i landmarkUV, double weight=1.0) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const Matrix3d& _cameraMatrix, size_t landmarkInd, const Eigen::Vector2i& landmarkUV, double weight=1.0) {
         return new ceres::AutoDiffCostFunction<SparseCostFunction, 2, 7, N_SHAPE_PARAMS, N_EXPR_PARAMS>(
             new SparseCostFunction(_pBfmManager, _cameraMatrix, landmarkInd, landmarkUV, weight)
         );
@@ -149,7 +151,7 @@ struct PriorExprCostFunction {
 
 
 struct ColorCostFunction {
-    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
+    ColorCostFunction(const std::shared_ptr<const BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
         pBfmManager(_pBfmManager), imageUtility(_imageUtility), vertexId(vertexId), weight(weight) {
             Vector3d xyz(
                 pBfmManager->m_vecCurrentBlendshape[3 * vertexId],
@@ -192,7 +194,7 @@ struct ColorCostFunction {
         return true;
     }
 
-    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight) {
 
         return new ceres::AutoDiffCostFunction<ColorCostFunction, 3, N_SHAPE_PARAMS>(
             new ColorCostFunction(_pBfmManager, _imageUtility, vertexId, weight)

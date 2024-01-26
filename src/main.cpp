@@ -84,9 +84,19 @@ int main(int argc, char *argv[])
     // }
     // std::cout << "My init cost" << initCost << "\n";
 
-    Optimizer optimizer(pBfmManager, imageUtility, 0.01, 1.0);
-    optimizer.solveSparse();
+    Optimizer optimizer(pBfmManager, imageUtility);
+    optimizer.addPriorConstraints(1.0);
+    optimizer.addSparseConstraints(0.01);
+    optimizer.solve();
     optimizer.printReport();
+
+    // if you want to reset the problem and
+    // only work with some of the constraints:
+//    optimizer.resetConstraints();
+//    optimizer.addPriorConstraints(1.0);
+//    optimizer.solve();
+
+
 
     // Important, dont forget to regenerate face (using coefs and extr)
     std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
@@ -120,7 +130,7 @@ int main(int argc, char *argv[])
         visualizer.finishFrame();
     }
 
-    // visualizer.closeOpenGL();
+    visualizer.closeOpenGL();
     google::ShutdownGoogleLogging();
 	return 0;
 }
