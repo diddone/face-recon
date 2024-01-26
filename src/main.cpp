@@ -16,7 +16,7 @@
 
 #include "visualizer.h"
 
-#include "ceres_optimizer.h"
+#include "optimizer_class.h"
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
@@ -66,9 +66,49 @@ int main(int argc, char *argv[])
     ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
 
     pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
-    // pBfmManager->genAvgFace();
+    pBfmManager->genAvgFace();
     //pBfmManager->writePly("avg_face_transformed.ply");
     //pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
+
+    // Sparse optimization
+    // TODO: Initialize necessary parameters
+    // double initCost=0.;
+    // auto landmark_uv = imageUtility.getUVLandmarks();
+    // for (size_t iLandmark = 0; iLandmark < pBfmManager->m_mapLandmarkIndices.size(); ++iLandmark) {
+    //     Vector2i landmark(landmark_uv[2 * iLandmark], landmark_uv[2 * iLandmark+1]);
+    //     auto costFunction = SparseCostFunction(pBfmManager, imageUtility.camera_matrix, iLandmark, landmark, 0.125);
+    //     double residuals[2];
+    //     bool t = costFunction(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, residuals);
+    //     std::cout << iLandmark<< " " << residuals[0] << " " << residuals[1] << std::endl;
+    //     initCost += residuals[0] * residuals[0] + residuals[1] * residuals[1];
+    // }
+    // std::cout << "My init cost" << initCost << "\n";
+
+    Optimizer optimizer(pBfmManager, imageUtility, 0.01, 1.0);
+    optimizer.solveSparse();
+    optimizer.printReport();
+
+    // Important, dont forget to regenerate face (using coefs and extr)
+    std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
+    std::cout << "Old blendshapes\n";
+    for (size_t t: {16214, 16229, 16248}) {
+        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * t] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * t + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * t + 2] << "\n";
+    }
+    pBfmManager->updateFaceUsingParams();
+    std::cout << "New blendshapes\n";
+    for (size_t t: {16214, 16229, 16248}) {
+        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * t] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * t + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * t + 2] << "\n";
+    }
+
+    // std::cout << "After upd Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
+    // std::cout << "scale factor" << pBfmManager->m_dScale << std::endl;
+	// std::cout << "Rotation matrix " << pBfmManager->m_matR << std::endl;
+	// std::cout << "translation vector " << pBfmManager->m_vecT << std::endl;
+
 
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
@@ -80,24 +120,7 @@ int main(int argc, char *argv[])
         visualizer.finishFrame();
     }
 
-    visualizer.closeOpenGL();
-
-    //Sparse optimization
-    //TODO: Initialize necessary parameters
-    
-    ceres::Solver::Summary summary = CeresOptimizer::optimize(pBfmManager, imageUtility, cameraMatrix, vertexIds, landmarkUVs, weights, pose, shapeCoefs, exprCoefs, texCoefs);
-    std::cout << summary.FullReport() << std::endl;
-
-	google::ShutdownGoogleLogging();
+    // visualizer.closeOpenGL();
+    google::ShutdownGoogleLogging();
 	return 0;
 }
-
-
-// int main() {
-//     // init_glog;
-
-//     // init bfm manager
-//     // read image -> cv::Mat
-//     // read detection -> std::vector<Eigen::Vector2i>
-//     // run procrusters ->
-// }

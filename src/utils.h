@@ -21,6 +21,7 @@ public:
     cv::Mat cloud_y;
     cv::Mat cloud_z;
     Eigen::VectorXd landmarks_xyz;
+    Eigen::VectorXi landmarks_uv;
 
     Eigen::Matrix3d camera_matrix;
     cv::Mat dist_coeffs;
@@ -66,6 +67,7 @@ public:
 
         // init landmarks vector
         landmarks_xyz = Eigen::VectorXd::Zero(3 * N_DLIB_LANDMARKS);
+        landmarks_uv = Eigen::VectorXi::Zero(2 * N_DLIB_LANDMARKS);
     }
 
     cv::Size rescaleImageSize(const cv::Size& old_image_size) const {
@@ -141,10 +143,14 @@ public:
         while (inFile >> uLandmark >> vLandmark) {
             uLandmark = std::round(uLandmark * scale);
             vLandmark = std::round(vLandmark * scale);
+
+            landmarks_uv[2 * landmarkCnt] = uLandmark;
+            landmarks_uv[2 * landmarkCnt + 1] = vLandmark;
             auto xyz = UVtoXYZ(uLandmark, vLandmark);
             landmarks_xyz[3 * landmarkCnt] = xyz[0];
             landmarks_xyz[3 * landmarkCnt + 1] = xyz[1];
             landmarks_xyz[3 * landmarkCnt + 2] = xyz[2];
+
             ++landmarkCnt;
         }
         inFile.close();
@@ -208,8 +214,12 @@ public:
         return maxDepth;
     }
 
-    Eigen::VectorXd getXYZLandmarks() {
+    const Eigen::VectorXd getXYZLandmarks() const {
         return landmarks_xyz;
+    }
+
+    const Eigen::VectorXi& getUVLandmarks() const {
+        return landmarks_uv;
     }
 
     const Eigen::Matrix3d& getIntMat() const {

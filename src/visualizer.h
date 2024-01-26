@@ -175,7 +175,19 @@ public:
         transformationMatrix.block<3,3>(0,0) *= (scale * rotation);
         transformationMatrix.block<3,1>(0,3) = translation;
 
+        Eigen::Matrix4d intr, transf;
+        intr << 1052.667867276341, 0, 962.4130834944134, 0.,
+                0, 1052.020917785721, 536.2206151001486, 0.,
+                0, 0, 1, 0.,
+                0., 0., 0., 1.;
+        double H = 1080.;
+        double W = 1920.;
+        transf << (2. / W), 0., -1., 0.,
+                0., (-2. / W), (H / W), 0.,
+                0., 0., 1., 0.,
+                0., 0., 0., 1.;
 
+        transformationMatrix = transf * intr * transformationMatrix;
 //        float left = -250, right = 250, top = 250, bottom = -250;
 //        float zFar = 1000;
 //        float zNear = 0.01;

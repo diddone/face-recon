@@ -566,7 +566,7 @@ void BfmManager::setExtParams(const double* const extParams) {
     for (size_t i = 0; i < m_aExtParams.size(); ++i) {
         m_aExtParams[i] = extParams[i];
     }
-    genTransMat();
+    genTransforms();
 }
 
 void BfmManager::genExtParams() {
@@ -577,7 +577,7 @@ void BfmManager::genExtParams() {
     m_aExtParams[6] = m_dScale;
 }
 
-void BfmManager::genTransMat() {
+void BfmManager::genTransforms() {
   LOG(INFO) << "Generate rotation, tranlation and scale.";
 
   double* startPointer = &m_aExtParams[0];
@@ -591,9 +591,9 @@ void BfmManager::genTransMat() {
   m_matR(1, 0) = rotationMatrix[1];	m_matR(1, 1) = rotationMatrix[4];	m_matR(1, 2) = rotationMatrix[7];
   m_matR(2, 0) = rotationMatrix[2];	m_matR(2, 1) = rotationMatrix[5];	m_matR(2, 2) = rotationMatrix[8];
 
-  const double &tx = translation[3];
-  const double &ty = translation[4];
-  const double &tz = translation[5];
+  const double &tx = translation[0];
+  const double &ty = translation[1];
+  const double &tz = translation[2];
   m_vecT << tx, ty, tz;
 
   m_dScale = scale[0];
@@ -632,17 +632,22 @@ void BfmManager::transformShapeExprBFM() {
     this->setIdExtParams();
 }
 
-template <typename T>
-void BfmManager::applyExtTransform(T* inputPoint, T* outputPoint) const {
-    const T* rotation = &m_aExtParams[0];
-    const T* translation = rotation + 3;
-    const T* scale = rotation + 6;
-
-    T temp[3];
-    ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
-
-    outputPoint[0] = scale[0] * temp[0] + translation[0];
-    outputPoint[1] = scale[0] * temp[1] + translation[1];
-    outputPoint[2] = scale[0] * temp[2] + translation[2];
+void BfmManager::updateFaceUsingParams() {
+    this->genFace();
+    this->genTransforms();
 }
+
+// template <typename T>
+// void BfmManager::applyExtTransform(T* inputPoint, T* outputPoint) const {
+//     const T* rotation = &m_aExtParams[0];
+//     const T* translation = rotation + 3;
+//     const T* scale = rotation + 6;
+
+//     T temp[3];
+//     ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+
+//     outputPoint[0] = scale[0] * temp[0] + translation[0];
+//     outputPoint[1] = scale[0] * temp[1] + translation[1];
+//     outputPoint[2] = scale[0] * temp[2] + translation[2];
+// }
 

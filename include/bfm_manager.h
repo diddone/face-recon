@@ -163,7 +163,7 @@ public:
 	 * 		bfmManager.genTVec();
 	 */
 
-	void genTransMat();
+	void genTransforms();
 
 
 	/* @Function writePly
@@ -201,13 +201,14 @@ public:
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
-	void transformShapeExprBFM();
+	void updateFaceUsingParams();
+    void transformShapeExprBFM();
 	void genExtParams();
 	void setIdExtParams();
 	void setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale);
 	void setExtParams(const double* const extParams);
     template <typename T>
-    void applyExtTransform(T* inputPoint, T* outputPoint) const;
+    // void applyExtTransform(T* inputPoint, T* outputPoint) const;
 
 	inline const std::string& getStrModelPath() const { return m_strModelPath; }
 
@@ -306,7 +307,6 @@ public:
 	// 	LOG(INFO) << "Cx:\t" << m_aIntParams[2];
 	// 	LOG(INFO) << "Cy:\t" << m_aIntParams[3];
 	// }
-
 
 	void printShapeCoefTopK(unsigned short nK) const
 	{
