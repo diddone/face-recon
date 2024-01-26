@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 
     Optimizer optimizer(pBfmManager, imageUtility);
     optimizer.addPriorConstraints(1.0);
-    optimizer.addSparseConstraints(0.01);
+    optimizer.addSparseConstraints(0.005);
     optimizer.solve();
     optimizer.printReport();
 

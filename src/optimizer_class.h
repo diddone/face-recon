@@ -72,7 +72,7 @@ private:
         options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
         options.use_nonmonotonic_steps = false;
         options.minimizer_progress_to_stdout = true;
-        options.max_num_iterations = 4;
+        options.max_num_iterations = 8;
         options.num_threads = 8;
     }
 };
