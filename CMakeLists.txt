@@ -8,6 +8,12 @@ set(CMAKE_CXX_FLAGS "-lboost_program_options")
 if(UNIX)
    add_compile_options(-fPIC)
 endif()
+
+# Debug mode specific settings
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -fsanitize=address -fsanitize=undefined")
+endif()
+
 # if(APPLE)
 # if(CMAKE_C_COMPILER_ID MATCHES "Clang")
 #     set(OpenMP_C "${CMAKE_C_COMPILER}" CACHE STRING "" FORCE)
