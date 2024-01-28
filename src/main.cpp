@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	ImageUtilityThing imageUtility(cameraInfoPath);
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
-    std::string imageFile = (data_path/"image_relighted.jpeg").string();
+    std::string imageFile = (data_path/"image.png").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
     std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
     imageUtility.input(imageFile, cloudFile, landmarkFile);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
     visualizer.setupFace(pBfmManager);
     while (visualizer.shouldRenderFrame()) {
         visualizer.setupFrame();
-        visualizer.renderImage();
+        //visualizer.renderImage();
         visualizer.renderFaceMesh();
         visualizer.finishFrame();
     }
