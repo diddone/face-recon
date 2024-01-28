@@ -112,6 +112,7 @@ void BfmManager::alloc() {
   m_vecCurrentExpr.resize(m_nVertices * 3);
   m_vecCurrentBlendshape.resize(m_nVertices * 3);
 
+  m_vecNormals.resize(m_nVertices * 3);
   auto nLandmarks = m_mapLandmarkIndices.size();
   if (m_bUseLandmark) {
     m_vecLandmarkShapeMu.resize(nLandmarks * 3);
@@ -636,18 +637,3 @@ void BfmManager::updateFaceUsingParams() {
     this->genFace();
     this->genTransforms();
 }
-
-// template <typename T>
-// void BfmManager::applyExtTransform(T* inputPoint, T* outputPoint) const {
-//     const T* rotation = &m_aExtParams[0];
-//     const T* translation = rotation + 3;
-//     const T* scale = rotation + 6;
-
-//     T temp[3];
-//     ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
-
-//     outputPoint[0] = scale[0] * temp[0] + translation[0];
-//     outputPoint[1] = scale[0] * temp[1] + translation[1];
-//     outputPoint[2] = scale[0] * temp[2] + translation[2];
-// }
-

@@ -30,21 +30,21 @@ public:
         problem = ceres::Problem();
     }
 
-    void addPriorConstraints(double priorWeight) {
+    void addPriorConstraints(double shapePriorWeight, double exprPriorWeight, double texPriorWeight) {
         size_t numberOfShapeParams = pBfmManager->m_nIdPcs;
         problem.AddResidualBlock(
-                PriorShapeCostFunction::create(numberOfShapeParams, priorWeight / numberOfShapeParams), nullptr,
+                PriorShapeCostFunction::create(numberOfShapeParams, pBfmManager->m_vecShapeEv, shapePriorWeight), nullptr,
                 pBfmManager->m_aShapeCoef
         );
 
         size_t numberOfExpressionParams = pBfmManager->m_nExprPcs;
         problem.AddResidualBlock(
-                PriorExprCostFunction::create(numberOfExpressionParams, priorWeight / numberOfExpressionParams), nullptr,
+                PriorExprCostFunction::create(numberOfExpressionParams, exprPriorWeight), nullptr,
                 pBfmManager->m_aExprCoef
         );
 
         problem.AddResidualBlock(
-                PriorTexCostFunction::create(numberOfShapeParams, priorWeight / numberOfShapeParams), nullptr,
+                PriorTexCostFunction::create(numberOfShapeParams, pBfmManager->m_vecTexEv, texPriorWeight), nullptr,
                 pBfmManager->m_aTexCoef
         );
     }

@@ -201,7 +201,8 @@ public:
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
-	void updateFaceUsingParams();
+    void computeNormals();
+    void updateFaceUsingParams();
     void transformShapeExprBFM();
 	void genExtParams();
 	void setIdExtParams();
@@ -462,6 +463,8 @@ public:
 	Eigen::VectorXd m_vecCurrentTex;
 	Eigen::VectorXd m_vecCurrentExpr;
 	Eigen::VectorXd m_vecCurrentBlendshape;
+
+    Eigen::VectorXd m_vecNormals;
 
 	// landmarks
 	bool m_bUseLandmark;

@@ -85,8 +85,9 @@ int main(int argc, char *argv[])
     // std::cout << "My init cost" << initCost << "\n";
     Optimizer optimizer(pBfmManager, imageUtility);
     optimizer.setNumThreads(4);
-    optimizer.addPriorConstraints(1.0);
-    optimizer.addSparseConstraints(0.004);
+    // after rescaling we need to make scale for shapePrior smaller
+    optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
+    optimizer.addSparseConstraints(0.002);
     optimizer.solve();
     optimizer.printReport();
 
@@ -95,9 +96,9 @@ int main(int argc, char *argv[])
 
     optimizer.resetConstraints();
     optimizer.setNumIterations(15);
-    optimizer.addPriorConstraints(1.0);
-    optimizer.addSparseConstraints(0.004);
-    optimizer.addDepthConstraints(25.0);
+    optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
+    optimizer.addSparseConstraints(0.002);
+    optimizer.addDepthConstraints(1.0);
     optimizer.solve();
     optimizer.printReport();
 
@@ -120,6 +121,7 @@ int main(int argc, char *argv[])
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
     }
+
     pBfmManager->updateFaceUsingParams();
     std::cout << "Blendshapes after depth\n";
     for (size_t t = 0; t < 3; ++t) {
@@ -128,14 +130,14 @@ int main(int argc, char *argv[])
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
     }
-    std::cout << "starting color term" << std::endl;
-    optimizer.resetConstraints();
-    optimizer.setNumThreads(4);
-    optimizer.addPriorConstraints(1.0);
-    optimizer.addColorConstraints(0.5);
-    optimizer.solve();
-    optimizer.printReport();
-
+    //std::cout << "starting color term" << std::endl;
+    // optimizer.resetConstraints();
+    // optimizer.setNumThreads(4);
+    // optimizer.addPriorConstraints(1.0);
+    // optimizer.addColorConstraints(0.5);
+    // optimizer.solve();
+    // optimizer.printReport();
+    setCurrentTexAsImage(pBfmManager, imageUtility);
     std::cout << "Blendshapes after color\n";
     for (size_t t = 0; t < 3; ++t) {
         size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
@@ -147,26 +149,26 @@ int main(int argc, char *argv[])
 
     // Important, dont forget to regenerate face (using coefs and extr)
     // std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
-    std::cout << "Old color\n";
-    for (size_t t = 0; t < 3; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        auto uvVec = imageUtility.getUVLandmarks();
-        std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
-        std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
-    }
-    pBfmManager->updateFaceUsingParams();
-    std::cout << "New color\n";
-    for (size_t t = 0; t < 3; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        auto uvVec = imageUtility.getUVLandmarks();
-        std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
-        std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
-    }
-    std::cout << std::endl;
+    // std::cout << "Old color\n";
+    // for (size_t t = 0; t < 3; ++t) {
+    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+    //     auto uvVec = imageUtility.getUVLandmarks();
+    //     std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+    //     std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
+    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
+    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
+    // }
+    // pBfmManager->updateFaceUsingParams();
+    // std::cout << "New color\n";
+    // for (size_t t = 0; t < 3; ++t) {
+    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+    //     auto uvVec = imageUtility.getUVLandmarks();
+    //     std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+    //     std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
+    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
+    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
+    // }
+    // std::cout << std::endl;
     // std::cout << "After upd Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
     // std::cout << "scale factor" << pBfmManager->m_dScale << std::endl;
 	// std::cout << "Rotation matrix " << pBfmManager->m_matR << std::endl;

@@ -161,52 +161,54 @@ template<typename T>
 
 struct PriorShapeCostFunction {
 
-    PriorShapeCostFunction(size_t nIdPcs, double weight): nIdPcs(nIdPcs), weight(weight)
+    PriorShapeCostFunction(size_t nIdPcs, const Eigen::VectorXd& sigmasRef, double weight): nIdPcs(nIdPcs), sigmasRef(sigmasRef), weight(weight)
     {}
 
     template<typename T>
 	bool operator()(const T* const shapeCoefs, T* residual) const  {
         for(size_t i = 0; i < nIdPcs; ++i) {
-            residual[i] = T(sqrt(weight)) * shapeCoefs[i];
+            residual[i] = T(sqrt(weight / sigmasRef[i])) * shapeCoefs[i];
         }
 
         return true;
     }
 
-    static ceres::CostFunction* create(size_t nIdPcs, double weight) {
+    static ceres::CostFunction* create(size_t nIdPcs, const Eigen::VectorXd& sigmasRef, double weight) {
         return new ceres::AutoDiffCostFunction<PriorShapeCostFunction, N_SHAPE_PARAMS, N_SHAPE_PARAMS>(
-            new PriorShapeCostFunction(nIdPcs, weight)
+            new PriorShapeCostFunction(nIdPcs, sigmasRef, weight)
         );
     }
 
     private:
         const size_t nIdPcs;
         const double weight;
+        const Eigen::VectorXd& sigmasRef;
 };
 
 struct PriorTexCostFunction {
 
-    PriorTexCostFunction(size_t nIdPcs, double weight): nIdPcs(nIdPcs), weight(weight)
+    PriorTexCostFunction(size_t nIdPcs, const Eigen::VectorXd& sigmasRef, double weight): nIdPcs(nIdPcs), sigmasRef(sigmasRef), weight(weight)
     {}
 
     template<typename T>
 	bool operator()(const T* const texCoefs, T* residual) const  {
         for(size_t i = 0; i < nIdPcs; ++i) {
-            residual[i] = T(sqrt(weight)) * texCoefs[i];
+            residual[i] = T(sqrt(weight / sigmasRef[i])) * texCoefs[i];
         }
 
         return true;
     }
 
-    static ceres::CostFunction* create(size_t nIdPcs, double weight) {
+    static ceres::CostFunction* create(size_t nIdPcs, const Eigen::VectorXd& sigmasRef, double weight) {
         return new ceres::AutoDiffCostFunction<PriorTexCostFunction, N_SHAPE_PARAMS, N_SHAPE_PARAMS>(
-            new PriorTexCostFunction(nIdPcs, weight)
+            new PriorTexCostFunction(nIdPcs, sigmasRef, weight)
         );
     }
 
     private:
         const size_t nIdPcs;
         const double weight;
+        const Eigen::VectorXd& sigmasRef;
 };
 
 struct PriorExprCostFunction {
@@ -233,52 +235,48 @@ struct PriorExprCostFunction {
         const double weight;
 };
 
+Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager> pBfmManager, const ImageUtilityThing& imageUtility, size_t vertexInd) {
+    Vector3d xyz(
+    pBfmManager->m_vecCurrentBlendshape[3 * vertexInd],
+    pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1],
+    pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2]
+    );
+    // transform current blendshape
+    xyz = (pBfmManager->m_dScale * pBfmManager->m_matR) * xyz + pBfmManager->m_vecT;
+    Eigen::Vector2d uv = imageUtility.XYZtoUV(xyz);
+
+    // we are using centers of the pixels
+    int i = std::floor(uv[0]);
+    int j= std::floor(uv[1]);
+
+    double c_i = i + 0.5;
+    double c_j = j + 0.5;
+
+    double w1 = (c_i + 1 - uv[0]) * (c_j + 1 - uv[1]);
+    double w2 = (uv[0] - c_i) * (c_j + 1 - uv[1]);
+    double w3 = (c_i + 1 - uv[0]) * (uv[1] - c_j);
+    double w4 = (uv[0] - c_i) * (uv[1] - c_j);
+
+    // std::cout << w1 << " " << imageUtility.UVtoColor(i, j) << std::endl;
+    // std::cout << w2 << " " << imageUtility.UVtoColor(i + 1, j) << std::endl;
+    // std::cout << w3 << " " << imageUtility.UVtoColor(i, j + 1) << std::endl;
+    // std::cout << w4 << " " << imageUtility.UVtoColor(i + 1, j + 1) << std::endl;
+
+    Eigen::Vector3d trueColor =
+    (
+        w1 * imageUtility.UVtoColor(i, j) +
+        w2 * imageUtility.UVtoColor(i + 1, j) +
+        w3 * imageUtility.UVtoColor(i, j + 1) +
+        w4 * imageUtility.UVtoColor(i + 1, j + 1)
+    );
+
+    return trueColor;
+}
 
 struct ColorCostFunction {
-    ColorCostFunction(const std::shared_ptr<const BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
+    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
         pBfmManager(_pBfmManager), imageUtility(_imageUtility), vertexId(vertexId), weight(weight) {
-            Vector3d xyz(
-                pBfmManager->m_vecCurrentBlendshape[3 * vertexId],
-                pBfmManager->m_vecCurrentBlendshape[3 * vertexId + 1],
-                pBfmManager->m_vecCurrentBlendshape[3 * vertexId + 2]
-            );
-            // transform current blendshape
-            xyz = (pBfmManager->m_dScale * pBfmManager->m_matR) * xyz + pBfmManager->m_vecT;
-            Eigen::Vector2d uv = imageUtility.XYZtoUV(xyz);
-
-            // we are using centers of the pixels
-            int i = std::floor(uv[0]);
-            int j= std::floor(uv[1]);
-
-            double c_i = i + 0.5;
-            double c_j = j + 0.5;
-
-            double w1 = (c_i + 1 - uv[0]) * (c_j + 1 - uv[1]);
-            double w2 = (uv[0] - c_i) * (c_j + 1 - uv[1]);
-            double w3 = (c_i + 1 - uv[0]) * (uv[1] - c_j);
-            double w4 = (uv[0] - c_i) * (uv[1] - c_j);
-
-            // std::cout << w1 << " " << imageUtility.UVtoColor(i, j) << std::endl;
-            // std::cout << w2 << " " << imageUtility.UVtoColor(i + 1, j) << std::endl;
-            // std::cout << w3 << " " << imageUtility.UVtoColor(i, j + 1) << std::endl;
-            // std::cout << w4 << " " << imageUtility.UVtoColor(i + 1, j + 1) << std::endl;
-
-            trueColor =
-            (
-                w1 * imageUtility.UVtoColor(i, j) +
-                w2 * imageUtility.UVtoColor(i + 1, j) +
-                w3 * imageUtility.UVtoColor(i, j + 1) +
-                w4 * imageUtility.UVtoColor(i + 1, j + 1)
-            );
-
-            auto l = {
-                16214, 16229, 16248, 16270, 16295,
-                25899, 26351, 26776, 27064
-            };
-            if (std::find(l.begin(), l.end(), vertexId) != l.end()) {
-                std::cout << "ID i j " << vertexId << " " << i << " " << j << std::endl;
-                std::cout << "true color " << trueColor << "\n-------------\n";
-            }
+            trueColor = projectVertexIntoMesh(pBfmManager, imageUtility, vertexId);
         }
 
     // assuming there is no transformation
@@ -313,3 +311,13 @@ struct ColorCostFunction {
         // target values of color
         Vector3d trueColor;
 };
+
+
+void setCurrentTexAsImage(std::shared_ptr<BfmManager> pBfmManager, const ImageUtilityThing& imageUtility) {
+    for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+        Vector3d trueColor = projectVertexIntoMesh(pBfmManager, imageUtility, vertexInd);
+        pBfmManager->m_vecCurrentTex[3 * vertexInd] = trueColor[0];
+        pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] = trueColor[1];
+        pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] = trueColor[2];
+    }
+}
