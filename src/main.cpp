@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	ImageUtilityThing imageUtility(cameraInfoPath);
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
-    std::string imageFile = (data_path/"image.png").string();
+    std::string imageFile = (data_path/"image_relighted.jpeg").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
     std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
     imageUtility.input(imageFile, cloudFile, landmarkFile);
@@ -83,37 +83,90 @@ int main(int argc, char *argv[])
     //     initCost += residuals[0] * residuals[0] + residuals[1] * residuals[1];
     // }
     // std::cout << "My init cost" << initCost << "\n";
-
     Optimizer optimizer(pBfmManager, imageUtility);
+    optimizer.setNumThreads(4);
     optimizer.addPriorConstraints(1.0);
-    optimizer.addSparseConstraints(0.005);
+    optimizer.addSparseConstraints(0.004);
     optimizer.solve();
     optimizer.printReport();
 
     // if you want to reset the problem and
     // only work with some of the constraints:
-//    optimizer.resetConstraints();
-//    optimizer.addPriorConstraints(1.0);
-//    optimizer.solve();
 
+    optimizer.resetConstraints();
+    optimizer.setNumIterations(15);
+    optimizer.addPriorConstraints(1.0);
+    optimizer.addSparseConstraints(0.004);
+    optimizer.addDepthConstraints(25.0);
+    optimizer.solve();
+    optimizer.printReport();
+
+    // we need to generate blendshapes for color optimisations.
+
+    // auto l = {
+    //             16214, 16229, 16248, 16270, 16295,
+    //             25899, 26351, 26776, 27064
+    //         };
+    // for (auto& x: l) {
+    //     auto costFn = ColorCostFunction(pBfmManager, imageUtility, x, 1.0);
+    //     double residual[3];
+    //     costFn(pBfmManager->m_aTexCoef, residual);
+    //     std::cout << "Residual " << residual[0] << " " << residual[1] << " " << residual[2] << std::endl;
+    // }
+    std::cout << "Blendshapes before depth\n";
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
+    }
+    pBfmManager->updateFaceUsingParams();
+    std::cout << "Blendshapes after depth\n";
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
+    }
+    std::cout << "starting color term" << std::endl;
+    optimizer.resetConstraints();
+    optimizer.setNumThreads(4);
+    optimizer.addPriorConstraints(1.0);
+    optimizer.addColorConstraints(0.5);
+    optimizer.solve();
+    optimizer.printReport();
+
+    std::cout << "Blendshapes after color\n";
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
+    }
 
 
     // Important, dont forget to regenerate face (using coefs and extr)
-    std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
-    std::cout << "Old blendshapes\n";
-    for (size_t t: {16214, 16229, 16248}) {
-        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * t] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * t + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * t + 2] << "\n";
+    // std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
+    std::cout << "Old color\n";
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        auto uvVec = imageUtility.getUVLandmarks();
+        std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+        std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
     }
     pBfmManager->updateFaceUsingParams();
-    std::cout << "New blendshapes\n";
-    for (size_t t: {16214, 16229, 16248}) {
-        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * t] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * t + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * t + 2] << "\n";
+    std::cout << "New color\n";
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        auto uvVec = imageUtility.getUVLandmarks();
+        std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+        std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
     }
-
+    std::cout << std::endl;
     // std::cout << "After upd Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
     // std::cout << "scale factor" << pBfmManager->m_dScale << std::endl;
 	// std::cout << "Rotation matrix " << pBfmManager->m_matR << std::endl;

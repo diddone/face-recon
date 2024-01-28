@@ -19,6 +19,13 @@ public:
         configureOptions();
     }
 
+    void setNumIterations(const size_t maxNumIterations) {
+        options.max_num_iterations = maxNumIterations;
+    }
+    void setNumThreads(const size_t numThreads) {
+        options.num_threads = numThreads;
+    }
+
     void resetConstraints() {
         problem = ceres::Problem();
     }
@@ -54,8 +61,21 @@ public:
         }
     }
 
+    void addDepthConstraints(double depthWeight) {
+        for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+            problem.AddResidualBlock(DepthP2PCostFunction::create(
+                pBfmManager, imageUtility, vertexInd, depthWeight / pBfmManager->m_nVertices
+            ), nullptr, pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef);
+        }
+    }
+
     void addColorConstraints(double colorWeight) {
         // same as other two
+        for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+            problem.AddResidualBlock(ColorCostFunction::create(
+                pBfmManager, imageUtility, vertexInd, colorWeight / pBfmManager->m_nVertices
+            ), nullptr, pBfmManager->m_aTexCoef);
+        }
     }
 
     void solve() {
@@ -72,7 +92,7 @@ private:
         options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
         options.use_nonmonotonic_steps = false;
         options.minimizer_progress_to_stdout = true;
-        options.max_num_iterations = 8;
+        options.max_num_iterations = 10;
         options.num_threads = 8;
     }
 };
