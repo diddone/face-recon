@@ -222,65 +222,6 @@ public:
         return Eigen::Vector2d(image_coords[0] / image_coords[2], image_coords[1] / image_coords[2]);
     }
 
-    //TODO: How to get adj. vertices? (For smooth shading)
-    //Currently it assumes that every triangle is lying on the same plane
-    std::vector<Eigen::Vector3d> computeVertexNormals(const std::shared_ptr<BfmManager>& pBfmManager){
-        std::vector<Eigen::Vector3d> face_vertices;
-        std::vector<unsigned int> face_indices;
-        std::vector<Eigen::Vector3d> vertexNormals;
-        
-        //gives the indices of vertices
-        for (size_t iIndex = 0; iIndex < pBfmManager->m_nFaces; iIndex++) {
-            face_indices.push_back(pBfmManager->m_vecTriangleList(iIndex * 3));
-            face_indices.push_back(pBfmManager->m_vecTriangleList(iIndex * 3 + 1));
-            face_indices.push_back(pBfmManager->m_vecTriangleList(iIndex * 3 + 2));
-        }
-        // std::cout << "Num face indices: " << face_indices.size() << std::endl;
-        //coordinates of the vertices
-        for (size_t iVertex = 0; iVertex < pBfmManager->m_nVertices; iVertex++) {
-            float x, y, z;
-
-            x = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3));
-            y = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3 + 1));
-            z = float(pBfmManager->m_vecCurrentBlendshape(iVertex * 3 + 2));
-
-            face_vertices.push_back({x, y, z});
-        }
-        std::cout << face_indices.size();
-        // Compute vertex normals
-        for (size_t i = 0; i < face_indices.size() - 2; i += 3) {
-            unsigned int index1 = face_indices[i];
-            unsigned int index2 = face_indices[i + 1];
-            unsigned int index3 = face_indices[i + 2];
-
-            Eigen::Vector3d vertA = face_vertices[index1];
-            Eigen::Vector3d vertB = face_vertices[index2];
-            Eigen::Vector3d vertC = face_vertices[index3];
-
-
-            Eigen::Vector3d faceNormal = computeVNormal(vertA, vertB, vertC);
-            //if triangle is lying on single plane normal of every vertex of a triangle is the same
-            vertexNormals.push_back(faceNormal);
-            vertexNormals.push_back(faceNormal);
-            vertexNormals.push_back(faceNormal);
-        }
-        //normalize every vertex normal
-        for(size_t i = 0; i < vertexNormals.size(); i++){
-            vertexNormals[i].normalize();
-        }
-        return vertexNormals;
-    }
-    
-    //computes normal of the given vertex 
-    Eigen::Vector3d computeVNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c){
-        Eigen::Vector3d norm_vec(0.0f, 0.0f, 0.0f);
-        Eigen::Vector3d AB = b - a; 
-        Eigen::Vector3d AC = c - a; 
-
-        return AB.cross(AC);
-    }
-
-
     int getWidth() const {
         return image_size.width;
     }
