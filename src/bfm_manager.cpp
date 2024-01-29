@@ -534,6 +534,70 @@ void BfmManager::writeLandmarkPly(std::string fn) const {
   out.close();
 }
 
+// Save weights to file
+void BfmManager::saveWeights(const std::string& filePath) {
+    std::ofstream outFile(filePath, std::ios::out);
+    if (!outFile.is_open()) {
+        throw std::runtime_error("Unable to open file for saving weights: " + filePath);
+    }
+
+    // Save extrinsic parameters
+    for (const auto& param : m_aExtParams) {
+        outFile << param << " ";
+    }
+    outFile << "\n";
+
+    // Save texture coefficients
+    for (int i = 0; i < m_nIdPcs; ++i) {
+        outFile << m_aTexCoef[i] << " ";
+    }
+    outFile << "\n";
+
+    // Save shape coefficients
+    for (int i = 0; i < m_nIdPcs; ++i) {
+        outFile << m_aShapeCoef[i] << " ";
+    }
+    outFile << "\n";
+
+    // Save expression coefficients
+    for (int i = 0; i < m_nExprPcs; ++i) {
+        outFile << m_aExprCoef[i] << " ";
+    }
+    outFile << "\n";
+
+    outFile.close();
+}
+
+// Load weights from file
+void BfmManager::loadWeights(const std::string& filePath) {
+    std::ifstream inFile(filePath, std::ios::in);
+    if (!inFile.is_open()) {
+        throw std::runtime_error("Unable to open file for loading weights: " + filePath);
+    }
+
+    // Load extrinsic parameters
+    for (auto& param : m_aExtParams) {
+        inFile >> param;
+    }
+
+    // Load texture coefficients
+    for (int i = 0; i < m_nIdPcs; ++i) {
+        inFile >> m_aTexCoef[i];
+    }
+
+    // Load shape coefficients
+    for (int i = 0; i < m_nIdPcs; ++i) {
+        inFile >> m_aShapeCoef[i];
+    }
+
+    // Load expression coefficients
+    for (int i = 0; i < m_nExprPcs; ++i) {
+        inFile >> m_aExprCoef[i];
+    }
+
+    inFile.close();
+}
+
 void BfmManager::setIdExtParams() {
 	m_matR = Matrix3d::Identity();
 	m_vecT.fill(0.);

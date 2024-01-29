@@ -197,6 +197,8 @@ public:
 	 * 		bfmManager.clrExtParams();
 	 */
 
+	void saveWeights(const std::string& filePath);
+    void loadWeights(const std::string& filePath);
 
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
