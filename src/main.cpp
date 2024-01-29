@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 
     std::string imageFile = (data_path/"image.png").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
-    std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
+    std::string landmarkFile = (data_path / "shape_predictor_68_face_landmarks.dat").string();
     imageUtility.input(imageFile, cloudFile, landmarkFile);
     VectorXd imageLandmarks = imageUtility.getXYZLandmarks();
 
@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
     // std::cout << "My init cost" << initCost << "\n";
     Optimizer optimizer(pBfmManager, imageUtility);
     optimizer.setNumThreads(4);
+    optimizer.setNumIterations(10);
     // after rescaling we need to make scale for shapePrior smaller
     optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
     optimizer.addSparseConstraints(0.002);
@@ -180,7 +181,7 @@ int main(int argc, char *argv[])
     visualizer.setupFace(pBfmManager);
     while (visualizer.shouldRenderFrame()) {
         visualizer.setupFrame();
-        //visualizer.renderImage();
+//        visualizer.renderImage();
         visualizer.renderFaceMesh();
         visualizer.finishFrame();
     }

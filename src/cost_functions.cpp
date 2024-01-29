@@ -235,7 +235,7 @@ struct PriorExprCostFunction {
         const double weight;
 };
 
-Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager> pBfmManager, const ImageUtilityThing& imageUtility, size_t vertexInd) {
+Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility, size_t vertexInd) {
     Vector3d xyz(
     pBfmManager->m_vecCurrentBlendshape[3 * vertexInd],
     pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1],
@@ -313,7 +313,7 @@ struct ColorCostFunction {
 };
 
 
-void setCurrentTexAsImage(std::shared_ptr<BfmManager> pBfmManager, const ImageUtilityThing& imageUtility) {
+void setCurrentTexAsImage(const std::shared_ptr<BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility) {
     for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
         Vector3d trueColor = projectVertexIntoMesh(pBfmManager, imageUtility, vertexInd);
         pBfmManager->m_vecCurrentTex[3 * vertexInd] = trueColor[0];

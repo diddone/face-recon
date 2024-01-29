@@ -9,10 +9,16 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/mat.hpp>
 #include <cmath>
-#include <string>
+//#include <opencv2/highgui/highgui.hpp>
+//#include <opencv2/imgproc/imgproc.hpp>
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_processing/render_face_detections.h>
+#include <dlib/image_processing.h>
+#include <dlib/image_io.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
+#include <dlib/opencv/cv_image.h>
 
 class ImageUtilityThing {
 public:
@@ -96,11 +102,6 @@ public:
             return;
         }
 
-        // Resize and normalize
-        cv::resize(rgb_image, rgb_image, image_size);
-        rgb_image.convertTo(rgb_image, CV_64FC3);
-        rgb_image /= 255.0f;
-
 
         // Load PCD file
         auto cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
@@ -135,25 +136,44 @@ public:
         cv::resize(cloud_z, cloud_z, image_size, 0., 0., depthInterMode);
 
         //landmarks
-        std::ifstream inFile;
-        inFile.open(landmarkFile, std::ios::in);
-        assert(inFile.is_open());
-        int uLandmark, vLandmark;
-        size_t landmarkCnt = 0;
-        while (inFile >> uLandmark >> vLandmark) {
-            uLandmark = std::round(uLandmark * scale);
-            vLandmark = std::round(vLandmark * scale);
 
-            landmarks_uv[2 * landmarkCnt] = uLandmark;
-            landmarks_uv[2 * landmarkCnt + 1] = vLandmark;
-            auto xyz = UVtoXYZ(uLandmark, vLandmark);
-            landmarks_xyz[3 * landmarkCnt] = xyz[0];
-            landmarks_xyz[3 * landmarkCnt + 1] = xyz[1];
-            landmarks_xyz[3 * landmarkCnt + 2] = xyz[2];
+        dlib::frontal_face_detector faceDetector = dlib::get_frontal_face_detector();
+        dlib::shape_predictor landmarkDetector;
+        dlib::deserialize(landmarkFile) >> landmarkDetector;
 
-            ++landmarkCnt;
+        dlib::cv_image<dlib::bgr_pixel> dlibImage(rgb_image);
+        std::vector<dlib::rectangle> faces = faceDetector(dlibImage);
+
+        if (!faces.empty()) {
+            // only work with the largest face in the image
+            dlib::rectangle largestFace = *std::max_element(faces.begin(), faces.end(),
+                                                            [](const dlib::rectangle& a, const dlib::rectangle& b) {
+                                                                return a.area() < b.area();
+                                                            });
+
+            // Find facial landmarks for the largest face
+            dlib::full_object_detection landmarks = landmarkDetector(dlibImage, largestFace);
+            std::cout<<"Landmarks:"<<std::endl;
+            for (size_t i = 0; i < landmarks.num_parts(); ++i) {
+                int uLandmark = std::round(landmarks.part(i).x() * scale);
+                int vLandmark = std::round(landmarks.part(i).y() * scale);
+
+                std::cout<<"x: "<<uLandmark<<"; y: "<<vLandmark<<std::endl;
+
+                landmarks_uv[2 * i] = uLandmark;
+                landmarks_uv[2 * i + 1] = vLandmark;
+                auto xyz = UVtoXYZ(uLandmark, vLandmark);
+                landmarks_xyz[3 * i] = xyz[0];
+                landmarks_xyz[3 * i + 1] = xyz[1];
+                landmarks_xyz[3 * i + 2] = xyz[2];
+            }
         }
-        inFile.close();
+
+
+        // Resize and normalize
+        cv::resize(rgb_image, rgb_image, image_size);
+        rgb_image.convertTo(rgb_image, CV_64FC3);
+        rgb_image /= 255.0f;
     }
 
     // Retrieves the color values at a given (u, v) coordinate as double values.
