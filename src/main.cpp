@@ -21,6 +21,7 @@
 #include <ceres/rotation.h>
 
 const std::string LOG_PATH("./log");
+const std::string WEIGHTS_FILE_PATH("../Data/bfm_weights.txt"); // Path to the weights file
 
 int main(int argc, char *argv[])
 {
@@ -53,6 +54,25 @@ int main(int argc, char *argv[])
 	ImageUtilityThing imageUtility(cameraInfoPath);
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
+    // Define a flag to check if weights are loaded
+    bool weightsLoaded = false;
+
+    // Load weights if they exist
+    if (boost::filesystem::exists(WEIGHTS_FILE_PATH)) {
+        try {
+            pBfmManager->loadWeights(WEIGHTS_FILE_PATH);
+            pBfmManager->updateFaceUsingParams(); // Apply the loaded parameters
+            LOG(INFO) << "Weights loaded successfully from " << WEIGHTS_FILE_PATH;
+            weightsLoaded = true;
+        } catch (const std::exception& e) {
+            LOG(ERROR) << "Error loading weights: " << e.what();
+            return 1;
+        }
+    } else {
+        LOG(INFO) << "No weights file found. Proceeding without loading weights.";
+    }
+
+
     std::string imageFile = (data_path/"image.png").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
     std::string landmarkFile = (data_path / "shape_predictor_68_face_landmarks.dat").string();
@@ -82,26 +102,30 @@ int main(int argc, char *argv[])
     //     std::cout << iLandmark<< " " << residuals[0] << " " << residuals[1] << std::endl;
     //     initCost += residuals[0] * residuals[0] + residuals[1] * residuals[1];
     // }
-    // std::cout << "My init cost" << initCost << "\n";
-    Optimizer optimizer(pBfmManager, imageUtility);
-    optimizer.setNumThreads(4);
-    optimizer.setNumIterations(10);
-    // after rescaling we need to make scale for shapePrior smaller
-    optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-    optimizer.addSparseConstraints(0.002);
-    optimizer.solve();
-    optimizer.printReport();
 
-    // if you want to reset the problem and
-    // only work with some of the constraints:
+    if (!weightsLoaded) {
+        // Perform optimization if weights were not loaded
+        Optimizer optimizer(pBfmManager, imageUtility);
+        optimizer.setNumThreads(4);
+        optimizer.setNumIterations(10);
+        optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
+        optimizer.addSparseConstraints(0.002);
+        optimizer.solve();
+        optimizer.printReport();
 
-    optimizer.resetConstraints();
-    optimizer.setNumIterations(15);
-    optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-    optimizer.addSparseConstraints(0.002);
-    optimizer.addDepthConstraints(1.0);
-    optimizer.solve();
-    optimizer.printReport();
+        optimizer.resetConstraints();
+        optimizer.setNumIterations(15);
+        optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
+        optimizer.addSparseConstraints(0.002);
+        optimizer.addDepthConstraints(1.0);
+        optimizer.solve();
+        optimizer.printReport();
+    }
+
+    // Save the current weights to a file for further texture work
+    std::string weightsFilePath = "../Data/bfm_weights.txt";
+    pBfmManager->saveWeights(weightsFilePath);
+    LOG(INFO) << "Weights saved to " << weightsFilePath;
 
     // we need to generate blendshapes for color optimisations.
 
