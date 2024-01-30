@@ -169,6 +169,8 @@ public:
 
         Eigen::Vector3d translation = pBfmManager->m_vecT;
 
+        transformationMatrix = Eigen::Matrix4d::Identity();
+
         transformationMatrix.block<3,3>(0,0) *= (scale * rotation);
         transformationMatrix.block<3,1>(0,3) = translation;
 

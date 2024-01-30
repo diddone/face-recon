@@ -158,7 +158,10 @@ public:
                 int uLandmark = std::round(landmarks.part(i).x() * scale);
                 int vLandmark = std::round(landmarks.part(i).y() * scale);
 
-                std::cout<<"x: "<<uLandmark<<"; y: "<<vLandmark<<std::endl;
+//                std::cout<<"x: "<<uLandmark<<"; y: "<<vLandmark<<std::endl;
+//                for (unsigned int i = 0; i < landmarks.num_parts(); ++i) {
+//                    cv::circle(rgb_image, cv::Point(landmarks.part(i).x(), landmarks.part(i).y()), 2, cv::Scalar(0, 255, 0), -1);
+//                }
 
                 landmarks_uv[2 * i] = uLandmark;
                 landmarks_uv[2 * i + 1] = vLandmark;
@@ -168,6 +171,9 @@ public:
                 landmarks_xyz[3 * i + 2] = xyz[2];
             }
         }
+
+//        cv::imshow("Facial Landmarks", rgb_image);
+//        cv::waitKey(0);
 
 
         // Resize and normalize
