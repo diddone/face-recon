@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 
     std::string imageFile = (data_path/"image.png").string();
     std::string cloudFile = (data_path/"cloud.pcd").string();
-    std::string landmarkFile = (data_path / "shape_predictor_68_face_landmarks.dat").string();
+    std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
     imageUtility.input(imageFile, cloudFile, landmarkFile);
     VectorXd imageLandmarks = imageUtility.getXYZLandmarks();
 

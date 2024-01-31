@@ -144,9 +144,6 @@ target_include_directories(bfm_manager PUBLIC ${Boost_INCLUDE_DIRS})
 #Ceres
 find_package(Ceres REQUIRED)
 
-# Find Dlib package
-find_package(dlib REQUIRED)
-
 # Bfm Manager
 target_include_directories(bfm_manager PUBLIC ./include)
 target_link_libraries(bfm_manager PUBLIC
@@ -165,9 +162,9 @@ src/shader_class.h include/stb_image.h src/utils.h
 src/face_mesh.h
 src/visualizer.h
 src/optimizer_class.h)
-target_include_directories(main PUBLIC ./include ${DLIB_INCLUDE_DIRECTORY})
+target_include_directories(main PUBLIC ./include)
 target_compile_features(main PRIVATE cxx_std_17)
-target_link_libraries(main glfw glad bfm_manager yaml-cpp dlib ${PCL_LIBRARIES} Ceres::ceres)
+target_link_libraries(main glfw glad bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
 target_compile_features(main PRIVATE cxx_std_17)
 
 # Visualizer
