@@ -73,35 +73,19 @@ int main(int argc, char *argv[])
     }
 
 
-    std::string imageFile = (data_path/"image.png").string();
-    std::string cloudFile = (data_path/"cloud.pcd").string();
-    std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
+    std::string imageFile = (data_path/"rgbd_face_dataset_training/013_11_image.png").string();
+    std::string cloudFile = (data_path/"rgbd_face_dataset_training/013_11_cloud.pcd").string();
+    std::string landmarkFile = (data_path / "samples/landmarkc_013_11_image.txt").string();
     imageUtility.input(imageFile, cloudFile, landmarkFile);
     VectorXd imageLandmarks = imageUtility.getXYZLandmarks();
 
-    // imageUtility.getUVLandmarks()
-    // Procruster: XYZ vector from BFM manager and XYZ vector from ImageUtility
-    //
     ProcrustesAligner procruster;
     ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
-
+    // this functions inits extrinsics of the BfmManager
     pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
     pBfmManager->genAvgFace();
     //pBfmManager->writePly("avg_face_transformed.ply");
     //pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
-
-    // Sparse optimization
-    // TODO: Initialize necessary parameters
-    // double initCost=0.;
-    // auto landmark_uv = imageUtility.getUVLandmarks();
-    // for (size_t iLandmark = 0; iLandmark < pBfmManager->m_mapLandmarkIndices.size(); ++iLandmark) {
-    //     Vector2i landmark(landmark_uv[2 * iLandmark], landmark_uv[2 * iLandmark+1]);
-    //     auto costFunction = SparseCostFunction(pBfmManager, imageUtility.camera_matrix, iLandmark, landmark, 0.125);
-    //     double residuals[2];
-    //     bool t = costFunction(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, residuals);
-    //     std::cout << iLandmark<< " " << residuals[0] << " " << residuals[1] << std::endl;
-    //     initCost += residuals[0] * residuals[0] + residuals[1] * residuals[1];
-    // }
 
     if (!weightsLoaded) {
         // Perform optimization if weights were not loaded
@@ -109,103 +93,45 @@ int main(int argc, char *argv[])
         optimizer.setNumThreads(4);
         optimizer.setNumIterations(10);
         optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-        optimizer.addSparseConstraints(0.002);
+        optimizer.addSparseConstraints(0.0001);
         optimizer.solve();
         optimizer.printReport();
 
-        optimizer.resetConstraints();
-        optimizer.setNumIterations(15);
-        optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-        optimizer.addSparseConstraints(0.002);
-        optimizer.addDepthConstraints(1.0);
-        optimizer.solve();
-        optimizer.printReport();
+        // optimizer.resetConstraints();
+        // optimizer.setNumIterations(10);
+        // optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
+        // optimizer.addSparseConstraints(0.0001);
+        // optimizer.addDepthConstraints(16.);
+        // optimizer.solve();
+        // optimizer.printReport();
     }
 
     // Save the current weights to a file for further texture work
-    std::string weightsFilePath = "../Data/bfm_weights.txt";
-    pBfmManager->saveWeights(weightsFilePath);
-    LOG(INFO) << "Weights saved to " << weightsFilePath;
-
-    // we need to generate blendshapes for color optimisations.
-
-    // auto l = {
-    //             16214, 16229, 16248, 16270, 16295,
-    //             25899, 26351, 26776, 27064
-    //         };
-    // for (auto& x: l) {
-    //     auto costFn = ColorCostFunction(pBfmManager, imageUtility, x, 1.0);
-    //     double residual[3];
-    //     costFn(pBfmManager->m_aTexCoef, residual);
-    //     std::cout << "Residual " << residual[0] << " " << residual[1] << " " << residual[2] << std::endl;
-    // }
-    std::cout << "Blendshapes before depth\n";
-    for (size_t t = 0; t < 3; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
-    }
-
-    pBfmManager->updateFaceUsingParams();
-    std::cout << "Blendshapes after depth\n";
-    for (size_t t = 0; t < 3; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
-    }
-    //std::cout << "starting color term" << std::endl;
-    // optimizer.resetConstraints();
-    // optimizer.setNumThreads(4);
-    // optimizer.addPriorConstraints(1.0);
-    // optimizer.addColorConstraints(0.5);
-    // optimizer.solve();
-    // optimizer.printReport();
-    setCurrentTexAsImage(pBfmManager, imageUtility);
-    std::cout << "Blendshapes after color\n";
-    for (size_t t = 0; t < 3; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        std::cout << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
-    }
-
+    // std::string weightsFilePath = "../Data/bfm_weights.txt";
+    // pBfmManager->saveWeights(weightsFilePath);
+    // LOG(INFO) << "Weights saved to " << weightsFilePath;
 
     // Important, dont forget to regenerate face (using coefs and extr)
-    // std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
-    // std::cout << "Old color\n";
-    // for (size_t t = 0; t < 3; ++t) {
-    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //     auto uvVec = imageUtility.getUVLandmarks();
-    //     std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
-    //     std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
-    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
-    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
-    // }
+    std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
+    std::cout << "Old color\n";
+    // pBfmManager->transformShapeExprBFM();
     // pBfmManager->updateFaceUsingParams();
-    // std::cout << "New color\n";
-    // for (size_t t = 0; t < 3; ++t) {
-    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //     auto uvVec = imageUtility.getUVLandmarks();
-    //     std::cout << "Image rgb " << imageUtility.UVtoColor(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
-    //     std::cout << pBfmManager->m_vecCurrentTex[3 * vertexInd] << " "
-    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] << " "
-    //     << pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] << "\n";
-    // }
-    // std::cout << std::endl;
-    // std::cout << "After upd Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
-    // std::cout << "scale factor" << pBfmManager->m_dScale << std::endl;
-	// std::cout << "Rotation matrix " << pBfmManager->m_matR << std::endl;
-	// std::cout << "translation vector " << pBfmManager->m_vecT << std::endl;
+    for (size_t t = 0; t < 3; ++t) {
+        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+        auto uvVec = imageUtility.getUVLandmarks();
+        std::cout << "Landmarks XYZ " << imageUtility.UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+        std::cout << "BFM " << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
+        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
+    }
 
 
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
-    visualizer.setupFace(pBfmManager);
+    visualizer.setupFace(pBfmManager, imageUtility);
     while (visualizer.shouldRenderFrame()) {
         visualizer.setupFrame();
-//        visualizer.renderImage();
+        visualizer.renderImage();
         visualizer.renderFaceMesh();
         visualizer.finishFrame();
     }
