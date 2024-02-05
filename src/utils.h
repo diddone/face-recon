@@ -226,6 +226,76 @@ public:
     const Eigen::Matrix3d& getIntMat() const {
         return camera_matrix;
     }
+
+    void writePly(std::string fn) const {
+        std::ofstream out;
+        out.open(fn, std::ios::out | std::ios::binary);
+        if (!out.is_open()) {
+            std::string sErrMsg = "Creation of " + fn + " failed.";
+            LOG(ERROR) << sErrMsg;
+            throw std::runtime_error(sErrMsg);
+            return;
+        }
+
+        // we are using this to print only near the face region
+        // we are using our landmark annotaion to define boundaries
+        int MIN_IDX_Y = 9;
+        int MAX_IDX_Y = 25;
+        int y1 = getUVLandmarks()[2 * (MIN_IDX_Y-1) + 1];
+        int y2 = getUVLandmarks()[2 * (MAX_IDX_Y-1) + 1];
+        int y_min = std::min(y1, y2) - 10;
+        int y_max = std::max(y1, y2) + 10;
+        size_t validCnt = 0;
+        for (int v = 0; v < getHeight(); ++v) {
+            for (int u = 0; u < getWidth(); ++u) {
+                double depth = UVtoDepth(u, v);
+                if (depth > 0.5 && !std::isnan(depth) && depth < 0.9 && v < y_max && v > y_min) {
+                    ++validCnt;
+                }
+            }
+        }
+
+        out << "ply\n";
+        out << "format binary_little_endian 1.0\n";
+        out << "comment Made from the 3D Morphable Face Model of the Univeristy of "
+                "Basel, Switzerland.\n";
+        out << "element vertex " << validCnt << "\n";
+        out << "property double x\n";
+        out << "property double y\n";
+        out << "property double z\n";
+        out << "property uchar red\n";
+        out << "property uchar green\n";
+        out << "property uchar blue\n";
+        out << "element face " << 0 << "\n";
+        out << "property list uchar int vertex_indices\n";
+        out << "end_header\n";
+
+        std::cout << "ValidCnt " << validCnt << std::endl;
+        double x, y, z;
+        unsigned char r=0,g=0,b=200;
+        for (int v = 0; v < getHeight(); ++v) {
+            for (int u = 0; u < getWidth(); ++u) {
+                double depth = UVtoDepth(u, v);
+                if (!std::isnan(depth) && depth > 0.5 && depth < 0.9 && v < y_max && v > y_min) {
+                    auto xyz = UVtoXYZ(u, v);
+                    x = xyz.x();
+                    y = xyz.y();
+                    z = xyz.z();
+                    if (std::isnan(x) || std::isnan(y) || std::isnan(z)) {
+                        std::cout << "NAN " << x << " " << y << " " << z << std::endl;
+                    }
+                    // std::cout << "Cloud " << x << " " << y << " " << z << " " << std::endl;
+                    out.write((char *)&x, sizeof(x));
+                    out.write((char *)&y, sizeof(y));
+                    out.write((char *)&z, sizeof(z));
+                    out.write((char *)&r, sizeof(r));
+                    out.write((char *)&g, sizeof(g));
+                    out.write((char *)&b, sizeof(b));
+                }
+            }
+        }
+        out.close();
+    }
 };
 
 bool initGlog(

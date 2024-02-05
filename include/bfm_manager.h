@@ -164,8 +164,9 @@ public:
 	 */
 
 	void genTransforms();
-	std::vector<Eigen::Vector3d> computeVertexNormals();
-	Eigen::Vector3d computeVNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c);
+    void computeVertexNormals();
+	// std::vector<Eigen::Vector3d> computeVertexNormals();
+	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c);
 
 
 	/* @Function writePly
@@ -205,7 +206,6 @@ public:
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
-    void computeNormals();
     void updateFaceUsingParams();
     void transformShapeExprBFM();
 	void genExtParams();
