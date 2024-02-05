@@ -9,11 +9,10 @@ uniform mat4 transformation;
 void main()
 {
 	gl_Position = transformation * vec4(aPos, 1.0);
-	// gl_Position.y *= -1;
-
+	// gl_Position.w = gl_Position.z;
 	gl_Position.x = gl_Position.x / gl_Position.z;
 	gl_Position.y = gl_Position.y / gl_Position.z;
 
-	// gl_Position.z = 0.50001;
+	gl_Position.z /= 100;
 	outColor = aColor;
 }
