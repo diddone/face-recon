@@ -82,7 +82,6 @@ BfmManager::BfmManager(const std::string &strModelPath,
   // here landmarks blendshapes are set
   this->genLandmarkBlendshape();
   this->genLandmarkBlendshape();
-  this->computeVertexNormals();
 }
 
 // allocates memory for bfm parameters

@@ -161,7 +161,7 @@ public:
         stbi_image_free(data);
     }
 
-    bool setupFace(const std::shared_ptr<BfmManager>& pBfmManager) {
+    bool setupFace(const std::shared_ptr<BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         double scale = pBfmManager->m_dScale;
@@ -175,10 +175,12 @@ public:
         transformationMatrix.block<3,1>(0,3) = translation;
 
         Eigen::Matrix4d intr, transf;
-        intr << 1052.667867276341, 0, 962.4130834944134, 0.,
-                0, 1052.020917785721, 536.2206151001486, 0.,
-                0, 0, 1, 0.,
-                0., 0., 0., 1.;
+        intr.setIdentity();
+        intr.block(0, 0, 3, 3) = imageUtility.camera_matrix;
+        // intr << 1052.667867276341, 0, 962.4130834944134, 0.,
+        //         0, 1052.020917785721, 536.2206151001486, 0.,
+        //         0, 0, 1, 0.,
+        //         0., 0., 0., 1.;
         double H = imageHeight;
         double W = imageWidth;
         transf << (2. / W), 0., -1., 0.,
