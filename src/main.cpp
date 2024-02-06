@@ -49,9 +49,9 @@ int main(int argc, char *argv[])
     //Test logging
     LOG(INFO) << "Logging initialized successfully.";
 
-    // intrinsics parameters
-    std::string cameraInfoPath((data_path / "camera_info.yaml").string());
-	ImageUtilityThing imageUtility(cameraInfoPath);
+  // intrinsics parameters
+  std::string cameraInfoPath((data_path / "camera_info.yaml").string());
+	std::shared_ptr<ImageUtilityThing> pImageUtility(new ImageUtilityThing(cameraInfoPath));
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
     // Define a flag to check if weights are loaded
@@ -76,24 +76,23 @@ int main(int argc, char *argv[])
     std::string imageFile = (data_path/"rgbd_face_dataset_training/013_11_image.png").string();
     std::string cloudFile = (data_path/"rgbd_face_dataset_training/013_11_cloud.pcd").string();
     std::string landmarkFile = (data_path / "samples/landmarkc_013_11_image.txt").string();
-    imageUtility.input(imageFile, cloudFile, landmarkFile);
-    VectorXd imageLandmarks = imageUtility.getXYZLandmarks();
+    pImageUtility->input(imageFile, cloudFile, landmarkFile);
+    VectorXd imageLandmarks = pImageUtility->getXYZLandmarks();
 
     ProcrustesAligner procruster;
     ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
-    // this functions inits extrinsics of the BfmManager
     pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
-    pBfmManager->genAvgFace();
-    //pBfmManager->writePly("avg_face_transformed.ply");
-    //pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
+    // this functions inits extrinsics of the BfmManager
 
+    // pBfmManager->genAvgFace();
+    // pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
     if (!weightsLoaded) {
         // Perform optimization if weights were not loaded
-        Optimizer optimizer(pBfmManager, imageUtility);
+        Optimizer optimizer(pBfmManager, pImageUtility);
         optimizer.setNumThreads(4);
-        optimizer.setNumIterations(10);
+        optimizer.setNumIterations(30);
         optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-        optimizer.addSparseConstraints(0.0001);
+        optimizer.addSparseConstraints(0.001);
         optimizer.solve();
         optimizer.printReport();
 
@@ -105,6 +104,10 @@ int main(int argc, char *argv[])
         // optimizer.solve();
         // optimizer.printReport();
     }
+
+    pBfmManager->transformShapeExprBFM();
+    pBfmManager->updateFaceUsingParams();
+    pBfmManager->writePly("proc_face.ply", false);
 
     // Save the current weights to a file for further texture work
     // std::string weightsFilePath = "../Data/bfm_weights.txt";
@@ -118,8 +121,8 @@ int main(int argc, char *argv[])
     // pBfmManager->updateFaceUsingParams();
     for (size_t t = 0; t < 3; ++t) {
         size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        auto uvVec = imageUtility.getUVLandmarks();
-        std::cout << "Landmarks XYZ " << imageUtility.UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
+        auto uvVec = pImageUtility->getUVLandmarks();
+        std::cout << "Landmarks XYZ " << pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
         std::cout << "BFM " << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
         << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
@@ -128,7 +131,7 @@ int main(int argc, char *argv[])
 
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
-    visualizer.setupFace(pBfmManager, imageUtility);
+    visualizer.setupFace(pBfmManager, pImageUtility);
     while (visualizer.shouldRenderFrame()) {
         visualizer.setupFrame();
         visualizer.renderImage();

@@ -12,12 +12,14 @@ void applyExtTransform(const T* extParams, T* inputPoint, T* outputPoint) {
     const T* translation = rotation + 3;
     const T* scale = rotation + 6;
 
+
     T temp[3];
     ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
 
-    outputPoint[0] = scale[0] * temp[0] + translation[0];
-    outputPoint[1] = scale[0] * temp[1] + translation[1];
-    outputPoint[2] = scale[0] * temp[2] + translation[2];
+    // we are using log parameterisation for the scale
+    outputPoint[0] = ceres::exp(scale[0]) * temp[0] + translation[0];
+    outputPoint[1] = ceres::exp(scale[0]) * temp[1] + translation[1];
+    outputPoint[2] = ceres::exp(scale[0]) * temp[2] + translation[2];
 }
 
 struct SparseCostFunction
@@ -85,8 +87,8 @@ int get_integer_part( double x ){
 }
 
 struct DepthP2PCostFunction {
-    DepthP2PCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, const size_t vertexInd, double weight):
-    pBfmManager(_pBfmManager), imageUtility(_imageUtility), vertexInd(vertexInd), weight(weight) {}
+    DepthP2PCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double weight):
+    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(vertexInd), weight(weight) {}
 
 
 template<typename T>
@@ -112,7 +114,7 @@ template<typename T>
         T transformed[3], projected[3], backProjected[3];
         applyExtTransform(pose, vXYZ, transformed);
 
-        auto cameraMatrix = imageUtility.camera_matrix;
+        auto cameraMatrix = pImageUtility->getIntMat();
         for (size_t i = 0; i < 3; ++i) {
             projected[i] = T(cameraMatrix(i, 0)) * transformed[0] + T(cameraMatrix(i, 1)) * transformed[1] + T(cameraMatrix(i, 2)) * transformed[2];
         }
@@ -124,7 +126,7 @@ template<typename T>
         uImage = get_integer_part(projected[0]);
         vImage = get_integer_part(projected[1]);
 
-        double depth_value = imageUtility.UVtoDepth(uImage, vImage);
+        double depth_value = pImageUtility->UVtoDepth(uImage, vImage);
         if (std::isnan(depth_value)) {
             residual[0] = T(0);
         } else {
@@ -146,15 +148,15 @@ template<typename T>
         return true;
     }
 
-    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, const size_t vertexInd, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double weight) {
         return new ceres::AutoDiffCostFunction<DepthP2PCostFunction, 1, 7, N_SHAPE_PARAMS, N_EXPR_PARAMS>(
-            new DepthP2PCostFunction(_pBfmManager, _imageUtility, vertexInd, weight)
+            new DepthP2PCostFunction(_pBfmManager, _pImageUtility, vertexInd, weight)
         );
     }
 
     private:
         const std::shared_ptr<const BfmManager> pBfmManager;
-        const ImageUtilityThing& imageUtility;
+        const std::shared_ptr<const ImageUtilityThing> pImageUtility;
         const size_t vertexInd;
         const double weight;
 };
@@ -235,7 +237,7 @@ struct PriorExprCostFunction {
         const double weight;
 };
 
-Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility, size_t vertexInd) {
+Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& pBfmManager, const std::shared_ptr<const ImageRGBOnly>& pImageUtility, size_t vertexInd) {
     Vector3d xyz(
     pBfmManager->m_vecCurrentBlendshape[3 * vertexInd],
     pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1],
@@ -243,7 +245,7 @@ Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& p
     );
     // transform current blendshape
     xyz = (pBfmManager->m_dScale * pBfmManager->m_matR) * xyz + pBfmManager->m_vecT;
-    Eigen::Vector2d uv = imageUtility.XYZtoUV(xyz);
+    Eigen::Vector2d uv = pImageUtility->XYZtoUV(xyz);
 
     // we are using centers of the pixels
     int i = std::floor(uv[0]);
@@ -264,19 +266,19 @@ Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& p
 
     Eigen::Vector3d trueColor =
     (
-        w1 * imageUtility.UVtoColor(i, j) +
-        w2 * imageUtility.UVtoColor(i + 1, j) +
-        w3 * imageUtility.UVtoColor(i, j + 1) +
-        w4 * imageUtility.UVtoColor(i + 1, j + 1)
+        w1 * pImageUtility->UVtoColor(i, j) +
+        w2 * pImageUtility->UVtoColor(i + 1, j) +
+        w3 * pImageUtility->UVtoColor(i, j + 1) +
+        w4 * pImageUtility->UVtoColor(i + 1, j + 1)
     );
 
     return trueColor;
 }
 
 struct ColorCostFunction {
-    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight):
-        pBfmManager(_pBfmManager), imageUtility(_imageUtility), vertexId(vertexId), weight(weight) {
-            trueColor = projectVertexIntoMesh(pBfmManager, imageUtility, vertexId);
+    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight):
+        pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexId(vertexId), weight(weight) {
+            trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexId);
         }
 
     // assuming there is no transformation
@@ -296,16 +298,16 @@ struct ColorCostFunction {
         return true;
     }
 
-    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const ImageUtilityThing& _imageUtility, size_t vertexId, double weight) {
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const std::shared_ptr<const ImageRGBOnly>  _pImageUtility, size_t vertexId, double weight) {
 
         return new ceres::AutoDiffCostFunction<ColorCostFunction, 3, N_SHAPE_PARAMS>(
-            new ColorCostFunction(_pBfmManager, _imageUtility, vertexId, weight)
+            new ColorCostFunction(_pBfmManager, _pImageUtility, vertexId, weight)
         );
     }
 
     private:
         const std::shared_ptr<const BfmManager> pBfmManager;
-        const ImageUtilityThing& imageUtility;
+        const std::shared_ptr<const ImageRGBOnly> pImageUtility;
         size_t vertexId;
         const double weight;
         // target values of color
@@ -313,11 +315,74 @@ struct ColorCostFunction {
 };
 
 
-void setCurrentTexAsImage(const std::shared_ptr<BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility) {
+void setCurrentTexAsImage(const std::shared_ptr<BfmManager>& pBfmManager, const std::shared_ptr<const ImageRGBOnly> pImageUtility) {
     for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
-        Vector3d trueColor = projectVertexIntoMesh(pBfmManager, imageUtility, vertexInd);
+        Vector3d trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexInd);
         pBfmManager->m_vecCurrentTex[3 * vertexInd] = trueColor[0];
         pBfmManager->m_vecCurrentTex[3 * vertexInd + 1] = trueColor[1];
         pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] = trueColor[2];
     }
 }
+
+
+
+VectorXd EvaluateSH(const Vector3d& dir) {
+    VectorXd shBasis(9);
+    double c0 = 0.5 * sqrt(M_1_PI);
+    double c1 = 0.5 * sqrt(double(3.) * M_1_PI);
+
+    shBasis[0] = c0;
+
+    shBasis[1] = c1 * dir.y();
+    shBasis[2] = c1 * dir.z();
+    shBasis[3] = c1 * dir.x();
+
+    double c2 = double(0.5) * sqrt(double(15.) * M_1_PI);
+    shBasis[4] = c2 * dir.x() * dir.y();
+    shBasis[5] = c2 * dir.y() * dir.z();
+    shBasis[6] = 0.25 * sqrt(double(5.) * M_1_PI) * (3. * dir.z() * dir.z() - 1);
+    shBasis[7] = c2 * dir.x() * dir.z();
+    shBasis[8] = 0.25 * sqrt(double(15.) * M_1_PI) * (dir.x() * dir.x() - dir.y() * dir.y());
+
+    return shBasis;
+}
+
+struct ColorWithLightningCostFunction {
+    ColorWithLightningCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager,  const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight):
+        pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexId(vertexId), weight(weight) {
+            trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexId);
+        }
+
+    // assuming there is no transformation
+    template<typename T>
+	bool operator()(const T* const texCoefs, T* residual) const  {
+        // iterating over xyz
+
+        for(size_t k = 0; k < 3; ++k) {
+            T color(pBfmManager->m_vecTexMu[3 * vertexId + k]);
+
+            for (size_t i = 0; i < pBfmManager->m_nIdPcs; ++i) {
+                color += T(pBfmManager->m_matTexPc(3 * vertexId + k, i)) * texCoefs[i];
+            }
+            residual[k] = T(sqrt(weight)) * (color - T(trueColor[k]));
+        }
+
+        return true;
+    }
+
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight) {
+
+        return new ceres::AutoDiffCostFunction<ColorWithLightningCostFunction, 3, N_SHAPE_PARAMS>(
+            new ColorWithLightningCostFunction(_pBfmManager, _pImageUtility, vertexId, weight)
+        );
+    }
+
+    private:
+        const std::shared_ptr<const BfmManager> pBfmManager;
+        const std::shared_ptr<const ImageRGBOnly> pImageUtility;
+        size_t vertexId;
+        const double weight;
+        // target values of color
+        Vector3d trueColor;
+        VectorXd shBasis;
+};

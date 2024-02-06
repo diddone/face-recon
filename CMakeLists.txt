@@ -167,6 +167,17 @@ target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main glfw glad bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
 target_compile_features(main PRIVATE cxx_std_17)
 
+# the same for rgb_only
+add_executable(rgb_main src/rgb_main.cpp src/utils.h include/glad/src/glad.c
+src/shader_class.h include/stb_image.h src/utils.h
+src/face_mesh.h
+src/visualizer.h
+src/optimizer_class.h)
+target_include_directories(rgb_main PUBLIC ./include)
+target_compile_features(rgb_main PRIVATE cxx_std_17)
+target_link_libraries(rgb_main glfw glad bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
+target_compile_features(rgb_main PRIVATE cxx_std_17)
+
 # Visualizer
 add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
         src/shader_class.h include/stb_image.h src/utils.h

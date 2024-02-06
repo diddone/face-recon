@@ -270,7 +270,7 @@ void BfmManager::genLandmarkBlendshape() {
     m_vecLandmarkCurrentBlendshape = m_vecLandmarkCurrentShape;
 }
 
-void BfmManager::writePly(std::string fn, long mode) const {
+void BfmManager::writePly(std::string fn, bool writeLandmarks) const {
   std::ofstream out;
   /* Note: In Linux Cpp, we should use std::ios::out as flag, which is not
    * necessary in Windows */
@@ -298,22 +298,20 @@ void BfmManager::writePly(std::string fn, long mode) const {
   out << "end_header\n";
 
   int cnt = 0;
+  float x, y, z;
   for (int iVertice = 0; iVertice < m_nVertices; iVertice++) {
-    float x, y, z;
-    if (mode & ModelWriteMode_NoExpr) {
-      x = float(m_vecCurrentShape(iVertice * 3));
-      y = float(m_vecCurrentShape(iVertice * 3 + 1));
-      z = float(m_vecCurrentShape(iVertice * 3 + 2));
-    } else {
-      x = float(m_vecCurrentBlendshape(iVertice * 3));
-      y = float(m_vecCurrentBlendshape(iVertice * 3 + 1));
-      z = float(m_vecCurrentBlendshape(iVertice * 3 + 2));
-    }
-
+    x = float(m_vecCurrentBlendshape(iVertice * 3));
+    y = float(m_vecCurrentBlendshape(iVertice * 3 + 1));
+    z = float(m_vecCurrentBlendshape(iVertice * 3 + 2));
     // TODO add translation and rotation?
     unsigned char r, g, b;
     auto d_to_ui = [](const double& x) { return uint(round(x * 255)); };
-    if (mode & ModelWriteMode_PickLandmark) {
+
+    r = d_to_ui(m_vecCurrentTex(iVertice * 3));
+    g = d_to_ui(m_vecCurrentTex(iVertice * 3 + 1));
+    b = d_to_ui(m_vecCurrentTex(iVertice * 3 + 2));
+
+    if (writeLandmarks) {
       bool bIsLandmark = false;
       for (const auto &bfmIdx : m_mapLandmarkIndices) {
         if (bfmIdx == iVertice) {
@@ -327,10 +325,6 @@ void BfmManager::writePly(std::string fn, long mode) const {
         b = 0;
         cnt++;
       }
-    } else {
-      r = d_to_ui(m_vecCurrentTex(iVertice * 3));
-      g = d_to_ui(m_vecCurrentTex(iVertice * 3 + 1));
-      b = d_to_ui(m_vecCurrentTex(iVertice * 3 + 2));
     }
 
     out.write((char *)&x, sizeof(x));
@@ -341,8 +335,7 @@ void BfmManager::writePly(std::string fn, long mode) const {
     out.write((char *)&b, sizeof(b));
   }
 
-  if ((mode & ModelWriteMode_PickLandmark) &&
-      cnt != m_mapLandmarkIndices.size()) {
+  if (writeLandmarks && cnt != m_mapLandmarkIndices.size()) {
     LOG(ERROR) << "Pick too less landmarks.";
     LOG(ERROR) << "Number of picked points is " << cnt;
     throw std::runtime_error("Pick too less landmarks");
@@ -623,7 +616,7 @@ void BfmManager::setRotTransScParams(const Matrix3d& newR, const Vector3d& newT,
     }
 
     m_vecT = newT;
-	m_dScale = newScale;
+	  m_dScale = newScale;
 
     this->genExtParams();
 }
@@ -640,7 +633,8 @@ void BfmManager::genExtParams() {
     m_aExtParams[3] = m_vecT[0];
     m_aExtParams[4] = m_vecT[1];
     m_aExtParams[5] = m_vecT[2];
-    m_aExtParams[6] = m_dScale;
+    // we are optimizing for the log of the scale
+    m_aExtParams[6] = log(m_dScale);
 }
 
 void BfmManager::genTransforms() {
@@ -662,7 +656,7 @@ void BfmManager::genTransforms() {
   const double &tz = translation[2];
   m_vecT << tx, ty, tz;
 
-  m_dScale = scale[0];
+  m_dScale = exp(scale[0]);
 }
 
 void BfmManager::transformShapeExprBFM() {

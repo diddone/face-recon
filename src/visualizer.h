@@ -161,7 +161,7 @@ public:
         stbi_image_free(data);
     }
 
-    bool setupFace(const std::shared_ptr<BfmManager>& pBfmManager, const ImageUtilityThing& imageUtility) {
+    bool setupFace(const std::shared_ptr<BfmManager>& pBfmManager, const std::shared_ptr<const ImageRGBOnly>& imageUtility) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         double scale = pBfmManager->m_dScale;
@@ -176,7 +176,7 @@ public:
 
         Eigen::Matrix4d intr, transf;
         intr.setIdentity();
-        intr.block(0, 0, 3, 3) = imageUtility.camera_matrix;
+        intr.block(0, 0, 3, 3) = imageUtility->getIntMat();
         // intr << 1052.667867276341, 0, 962.4130834944134, 0.,
         //         0, 1052.020917785721, 536.2206151001486, 0.,
         //         0, 0, 1, 0.,

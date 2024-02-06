@@ -15,24 +15,154 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 
-class ImageUtilityThing {
-public:
+class ImageRGBOnly {
+protected:
     cv::Mat rgb_image;
+    Eigen::VectorXi landmarks_uv;
+    Eigen::Matrix3d camera_matrix;
+
+    cv::Size init_rgb_image_size;
+    cv::Size image_size;
+    double scale = 1.;
+public:
+    ImageRGBOnly() {
+      landmarks_uv = Eigen::VectorXi::Zero(2 * N_DLIB_LANDMARKS);
+    }
+
+    cv::Size rescaleImageSize(const cv::Size& old_image_size) const {
+        return cv::Size(int(old_image_size.width * scale), (old_image_size.height * scale));
+    }
+
+    void input(const std::string& image_file, const std::string& landmarkFile, double new_scale=1.0) {
+        if (new_scale <= 0) {
+          std::cerr << "Error: Scale must be greater than zero." << std::endl;
+          return;
+        }
+        // set new scale and image size
+        scale = new_scale;
+        //cv::Size image_size = rescaleImageSize(init_rgb_image_size);
+
+        // Load RGB image
+        // cv::Mat rgb_image = cv::imread(image_file);
+        rgb_image = cv::imread(image_file);
+        init_rgb_image_size = rgb_image.size();
+        image_size = rescaleImageSize(init_rgb_image_size);
+        if (rgb_image.empty()) {
+            std::cerr << "Error: RGB image not loaded properly." << std::endl;
+            return;
+        }
+
+        // Resize and normalize
+        cv::resize(rgb_image, rgb_image, image_size);
+        rgb_image.convertTo(rgb_image, CV_64FC3);
+        rgb_image /= 255.0f;
+
+        // init intrinsics
+        double Fx = 50.;
+        double Fy = 50.;
+        double W = 36.;
+        double H = 24.;
+        double fx = Fx * image_size.width / W;
+        double fy = Fy * image_size.height / H;
+        double cx = double(image_size.width) / 2;
+        double cy = double(image_size.height) / 2;
+        camera_matrix << fx, 0., cx,
+                          0., fy, cy,
+                          0., 0., 1.;
+
+        std::ifstream inFile;
+        inFile.open(landmarkFile, std::ios::in);
+        assert(inFile.is_open());
+        int uLandmark, vLandmark;
+        size_t landmarkCnt = 0;
+        while (inFile >> uLandmark >> vLandmark) {
+            uLandmark = std::round(uLandmark * scale);
+            vLandmark = std::round(vLandmark * scale);
+
+            landmarks_uv[2 * landmarkCnt] = uLandmark;
+            landmarks_uv[2 * landmarkCnt + 1] = vLandmark;
+            ++landmarkCnt;
+        }
+        inFile.close();
+    }
+
+
+    // Retrieves the color values at a given (u, v) coordinate as double values.
+    // These values can later be converted to actual RGB values for plotting or visualization.
+    template <typename T>
+    Eigen::Vector3d UVtoColor(T u, T v) const {
+        if (u >= 0 && u < rgb_image.cols && v >= 0 && v < rgb_image.rows) {
+            // Access the pixel at (u, v) and convert the color values to double
+            const cv::Vec3d& color = rgb_image.at<cv::Vec3d>(v, u);
+
+            // The cv::Vec3d contains BGR values in the order of [0] = Blue, [1] = Green, [2] = Red
+            // Convert them to RGB and return as Eigen::Vector3d
+            return Eigen::Vector3d(color[2], color[1], color[0]);
+        } else {
+            // Return NaN for out-of-bounds
+            return Eigen::Vector3d(std::nan(""), std::nan(""), std::nan(""));
+        }
+    }
+
+    // this function may be reimplemented
+    // virtual Eigen::Vector3d UVtoXYZ(double u, double v) const;
+
+
+    // template <typename T>
+    // double UVtoDepth(T u, T v) const{
+    //     return UVtoXYZ(std::round(u), std::round(v))[2];
+    // }
+
+    // Method to project XYZ onto the image space(pixels) using intrinsic parameters
+    Eigen::Vector2d XYZtoUV(const Eigen::Vector3d& xyz) const {
+
+        Eigen::Vector3d image_coords = camera_matrix * xyz;
+
+        // Apply camera intrinsics to project onto the image plane
+        return Eigen::Vector2d(image_coords[0] / image_coords[2], image_coords[1] / image_coords[2]);
+    }
+
+    int getWidth() const {
+        return image_size.width;
+    }
+
+    int getHeight() const {
+        return image_size.height;
+    }
+
+    // virtual double getMaxDepth() const;
+
+    // virtual const Eigen::VectorXd getXYZLandmarks() const;
+
+    const Eigen::VectorXi& getUVLandmarks() const {
+        return landmarks_uv;
+    }
+
+    const Eigen::Matrix3d& getIntMat() const {
+        return camera_matrix;
+    }
+
+    // void writePly(std::string fn) const;
+};
+
+class ImageUtilityThing : public ImageRGBOnly {
+public:
+    // cv::Mat rgb_image;
     cv::Mat cloud_x;
     cv::Mat cloud_y;
     cv::Mat cloud_z;
     Eigen::VectorXd landmarks_xyz;
-    Eigen::VectorXi landmarks_uv;
+    // Eigen::VectorXi landmarks_uv;
 
-    Eigen::Matrix3d camera_matrix;
+    // Eigen::Matrix3d camera_matrix;
     cv::Mat dist_coeffs;
-    cv::Size init_rgb_image_size;
+    // cv::Size init_rgb_image_size;
     cv::Size init_depth_image_size;
     double maxDepth = 0.0;
 
-    cv::Size image_size;
+    // cv::Size image_size;
     double depth_init_scale = 0.5;
-    double scale = 1.;
+    // double scale = 1.;
 public:
     ImageUtilityThing(const std::string& yaml_file) {
         YAML::Node config = YAML::LoadFile(yaml_file);
@@ -68,17 +198,17 @@ public:
 
         // init landmarks vector
         landmarks_xyz = Eigen::VectorXd::Zero(3 * N_DLIB_LANDMARKS);
-        landmarks_uv = Eigen::VectorXi::Zero(2 * N_DLIB_LANDMARKS);
+
     }
 
-    cv::Size rescaleImageSize(const cv::Size& old_image_size) const {
-        return cv::Size(int(old_image_size.width * scale), (old_image_size.height * scale));
-    }
+    // cv::Size rescaleImageSize(const cv::Size& old_image_size) const {
+    //     return cv::Size(int(old_image_size.width * scale), (old_image_size.height * scale));
+    // }
     void input(const std::string& image_file, const std::string& pcd_file, const std::string& landmarkFile, double new_scale=1.0) {
         if (new_scale <= 0) {
-        std::cerr << "Error: Scale must be greater than zero." << std::endl;
-        return;
-    }
+          std::cerr << "Error: Scale must be greater than zero." << std::endl;
+          return;
+        }
         // set new scale and image size
         scale = new_scale;
 
@@ -159,20 +289,20 @@ public:
 
     // Retrieves the color values at a given (u, v) coordinate as double values.
     // These values can later be converted to actual RGB values for plotting or visualization.
-    template <typename T>
-    Eigen::Vector3d UVtoColor(T u, T v) const {
-        if (u >= 0 && u < rgb_image.cols && v >= 0 && v < rgb_image.rows) {
-            // Access the pixel at (u, v) and convert the color values to double
-            const cv::Vec3d& color = rgb_image.at<cv::Vec3d>(v, u);
+    // template <typename T>
+    // Eigen::Vector3d UVtoColor(T u, T v) const {
+    //     if (u >= 0 && u < rgb_image.cols && v >= 0 && v < rgb_image.rows) {
+    //         // Access the pixel at (u, v) and convert the color values to double
+    //         const cv::Vec3d& color = rgb_image.at<cv::Vec3d>(v, u);
 
-            // The cv::Vec3d contains BGR values in the order of [0] = Blue, [1] = Green, [2] = Red
-            // Convert them to RGB and return as Eigen::Vector3d
-            return Eigen::Vector3d(color[2], color[1], color[0]);
-        } else {
-            // Return NaN for out-of-bounds
-            return Eigen::Vector3d(std::nan(""), std::nan(""), std::nan(""));
-        }
-    }
+    //         // The cv::Vec3d contains BGR values in the order of [0] = Blue, [1] = Green, [2] = Red
+    //         // Convert them to RGB and return as Eigen::Vector3d
+    //         return Eigen::Vector3d(color[2], color[1], color[0]);
+    //     } else {
+    //         // Return NaN for out-of-bounds
+    //         return Eigen::Vector3d(std::nan(""), std::nan(""), std::nan(""));
+    //     }
+    // }
 
     template <typename T>
     Eigen::Vector3d UVtoXYZ(T u, T v) const {
@@ -195,21 +325,22 @@ public:
     }
 
     // Method to project XYZ onto the image space(pixels) using intrinsic parameters
-    Eigen::Vector2d XYZtoUV(const Eigen::Vector3d& xyz) const {
+    // already been overriden
+    // Eigen::Vector2d XYZtoUV(const Eigen::Vector3d& xyz) const {
 
-        Eigen::Vector3d image_coords = camera_matrix * xyz;
+    //     Eigen::Vector3d image_coords = camera_matrix * xyz;
 
-        // Apply camera intrinsics to project onto the image plane
-        return Eigen::Vector2d(image_coords[0] / image_coords[2], image_coords[1] / image_coords[2]);
-    }
+    //     // Apply camera intrinsics to project onto the image plane
+    //     return Eigen::Vector2d(image_coords[0] / image_coords[2], image_coords[1] / image_coords[2]);
+    // }
 
-    int getWidth() const {
-        return image_size.width;
-    }
+    // int getWidth() const {
+    //     return image_size.width;
+    // }
 
-    int getHeight() const {
-        return image_size.height;
-    }
+    // int getHeight() const {
+    //     return image_size.height;
+    // }
 
     double getMaxDepth() const {
         return maxDepth;
@@ -219,13 +350,13 @@ public:
         return landmarks_xyz;
     }
 
-    const Eigen::VectorXi& getUVLandmarks() const {
-        return landmarks_uv;
-    }
+    // const Eigen::VectorXi& getUVLandmarks() const {
+    //     return landmarks_uv;
+    // }
 
-    const Eigen::Matrix3d& getIntMat() const {
-        return camera_matrix;
-    }
+    // const Eigen::Matrix3d& getIntMat() const {
+    //     return camera_matrix;
+    // }
 
     void writePly(std::string fn) const {
         std::ofstream out;

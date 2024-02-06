@@ -187,7 +187,7 @@ public:
 	 * 		Users could use `&` to combine different modes.
 	 */
 
-	void writePly(std::string fn = "face.ply", long mode = ModelWriteMode_None) const;
+	void writePly(std::string fn = "face.ply", bool writeLandmarks=false) const;
 	void writePlyNew(std::string fn = "face.ply", long mode = ModelWriteMode_None) const;
 	void writePlyPoints(std::string fn = "face.ply", long mode = ModelWriteMode_None) const;
 	void writeLandmarkPly(std::string fn = "landmarks.ply") const;

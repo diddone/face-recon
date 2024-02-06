@@ -7,14 +7,15 @@
 class Optimizer {
 
     shared_ptr<BfmManager> pBfmManager;
-    const ImageUtilityThing& imageUtility;
+    const shared_ptr<const ImageRGBOnly> pImageUtility;
 
-    ceres::Problem problem;
+    // ceres::Problem problem;
     ceres::Solver::Options options;
     ceres::Solver::Summary summary;
 
 public:
-    Optimizer(shared_ptr<BfmManager> _pBfmManager, const ImageUtilityThing& _imageUtility): imageUtility(_imageUtility) {
+    ceres::Problem problem;
+    Optimizer(shared_ptr<BfmManager> _pBfmManager, const shared_ptr<const ImageRGBOnly> _imageUtility): pImageUtility(_imageUtility) {
         pBfmManager = std::move(_pBfmManager);
         configureOptions();
     }
@@ -50,21 +51,22 @@ public:
     }
 
     void addSparseConstraints(double sparseWeight) {
-        Eigen::VectorXi imageLandmarks = imageUtility.getUVLandmarks();
+        Eigen::VectorXi imageLandmarks = pImageUtility->getUVLandmarks();
         size_t numberOfLandmarks = pBfmManager->m_mapLandmarkIndices.size();
 
         for (size_t iLandmark = 0; iLandmark < numberOfLandmarks; ++iLandmark) {
             Eigen::Vector2i landmark(imageLandmarks[2 * iLandmark], imageLandmarks[2 * iLandmark + 1]);
             problem.AddResidualBlock(SparseCostFunction::create(
-                    pBfmManager, imageUtility.camera_matrix, iLandmark, landmark, sparseWeight / numberOfLandmarks
+                    pBfmManager, pImageUtility->getIntMat(), iLandmark, landmark, sparseWeight / numberOfLandmarks
             ), nullptr, pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef);
         }
     }
 
     void addDepthConstraints(double depthWeight) {
+        std::shared_ptr<const ImageUtilityThing> pImageUtilityWithDepth = std::static_pointer_cast<const ImageUtilityThing>(pImageUtility);
         for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
             problem.AddResidualBlock(DepthP2PCostFunction::create(
-                pBfmManager, imageUtility, vertexInd, depthWeight / pBfmManager->m_nVertices
+                pBfmManager, pImageUtilityWithDepth, vertexInd, depthWeight / pBfmManager->m_nVertices
             ), nullptr, pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef);
         }
     }
@@ -73,7 +75,7 @@ public:
         // same as other two
         for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
             problem.AddResidualBlock(ColorCostFunction::create(
-                pBfmManager, imageUtility, vertexInd, colorWeight / pBfmManager->m_nVertices
+                pBfmManager, pImageUtility, vertexInd, colorWeight / pBfmManager->m_nVertices
             ), nullptr, pBfmManager->m_aTexCoef);
         }
     }
