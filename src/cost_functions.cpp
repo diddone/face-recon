@@ -325,7 +325,6 @@ void setCurrentTexAsImage(const std::shared_ptr<BfmManager>& pBfmManager, const 
 }
 
 
-
 VectorXd EvaluateSH(const Vector3d& dir) {
     VectorXd shBasis(9);
     double c0 = 0.5 * sqrt(M_1_PI);

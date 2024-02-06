@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
     }
 
     pBfmManager->updateFaceUsingParams();
+    setCurrentTexAsImage(pBfmManager, pImageUtility);
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
     visualizer.setupFace(pBfmManager, pImageUtility);

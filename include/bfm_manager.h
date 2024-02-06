@@ -164,7 +164,7 @@ public:
 	 */
 
 	void genTransforms();
-    void computeVertexNormals();
+  void computeVertexNormals();
 	// std::vector<Eigen::Vector3d> computeVertexNormals();
 	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c);
 
@@ -206,8 +206,8 @@ public:
 /*************************************************************************************************************/
 /***************************************** Set & Get Functions ***********************************************/
 /*************************************************************************************************************/
-    void updateFaceUsingParams();
-    void transformShapeExprBFM();
+  void updateFaceUsingParams();
+  void transformShapeExprBFM();
 	void genExtParams();
 	void setIdExtParams();
 	void setRotTransScParams(const Matrix3d& newR, const Vector3d& newT, const double& newScale);

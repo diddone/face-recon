@@ -81,7 +81,8 @@ public:
     }
 
     void solve() {
-        return ceres::Solve(options, &problem, &summary);
+      ceres::Solve(options, &problem, &summary);
+      pBfmManager->updateFaceUsingParams();
     }
 
     void printReport() {
