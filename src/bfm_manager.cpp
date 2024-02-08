@@ -48,6 +48,19 @@ BfmManager::BfmManager(const std::string &strModelPath,
       m_strExprEvH5Path = R"(expression/model/pcaVariance)";
       m_strExprPcH5Path = R"(expression/model/pcaBasis)";
       m_strTriangleListH5Path = R"(shape/representer/cells)";
+    } else if (strFn == "model2019_face12") {
+      m_strVersion = "2019-face12";
+      m_nVertices = 82971, m_nFaces = 55040, m_nIdPcs = 199, m_nExprPcs = 100,
+      m_strShapeMuH5Path = R"(shape/model/mean)";
+      m_strShapeEvH5Path = R"(shape/model/pcaVariance)";
+      m_strShapePcH5Path = R"(shape/model/pcaBasis)";
+      m_strTexMuH5Path = R"(color/model/mean)";
+      m_strTexEvH5Path = R"(color/model/pcaVariance)";
+      m_strTexPcH5Path = R"(color/model/pcaBasis)";
+      m_strExprMuH5Path = R"(expression/model/mean)";
+      m_strExprEvH5Path = R"(expression/model/pcaVariance)";
+      m_strExprPcH5Path = R"(expression/model/pcaBasis)";
+      m_strTriangleListH5Path = R"(shape/representer/cells)";
     } else {
       LOG(ERROR) << "Unknown model " << strFn << "\n";
     }
@@ -449,6 +462,7 @@ void BfmManager::writePlyNew(std::string fn, long mode) const {
   out.close();
 }
 
+
 void BfmManager::writePlyPoints(std::string fn, long mode) const {
   std::ofstream out;
   /* Note: In Linux Cpp, we should use std::ios::out as flag, which is not
@@ -718,8 +732,8 @@ void BfmManager::computeVertexNormals() {
             m_vecCurrentBlendshape[3 * indexC + 1],
             m_vecCurrentBlendshape[3 * indexC + 2]
         );
-
-        Eigen::Vector3d faceNormal = computeFNormal(vertA, vertB, vertC);
+        // we are using area of the triangle as a weight
+        Eigen::Vector3d faceNormal = computeFNormal(vertA, vertB, vertC, false);
         if (vertA.dot(faceNormal) > 0) {
             faceNormal *= -1;
         }
@@ -735,12 +749,18 @@ void BfmManager::computeVertexNormals() {
     }
 }
 
-Eigen::Vector3d BfmManager::computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c){
+Eigen::Vector3d BfmManager::computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c, bool normalize) {
     Eigen::Vector3d norm_vec(0.0f, 0.0f, 0.0f);
     Eigen::Vector3d AB = b - a;
     Eigen::Vector3d AC = c - a;
 
-    return AB.cross(AC).normalized();
+    // here we use unormalised version
+    auto normal = AB.cross(AC);
+    if (normalize) {
+      return normal.normalized();
+    } else {
+      return normal;
+    }
 }
 // std::vector<Eigen::Vector3d> BfmManager::computeVertexNormals() {
 //     std::vector<Eigen::Vector3d> face_vertices;

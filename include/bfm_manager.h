@@ -166,7 +166,7 @@ public:
 	void genTransforms();
   void computeVertexNormals();
 	// std::vector<Eigen::Vector3d> computeVertexNormals();
-	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c);
+	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c, bool normalized=true);
 
 
 	/* @Function writePly
@@ -191,7 +191,6 @@ public:
 	void writePlyNew(std::string fn = "face.ply", long mode = ModelWriteMode_None) const;
 	void writePlyPoints(std::string fn = "face.ply", long mode = ModelWriteMode_None) const;
 	void writeLandmarkPly(std::string fn = "landmarks.ply") const;
-
 
 	/*
 	 * @Function clrExtParams
