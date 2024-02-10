@@ -21,7 +21,7 @@
 #include <ceres/rotation.h>
 
 const std::string LOG_PATH("./log");
-const std::string WEIGHTS_FILE_PATH("../Data/bfm_weights.txt"); // Path to the weights file
+const std::string WEIGHTS_FILE_PATH("../Data/uninit.txt"); // Path to the weights file
 
 int main(int argc, char *argv[])
 {
@@ -52,14 +52,14 @@ int main(int argc, char *argv[])
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
   // intrinsics parameters
-  std::string imageFile = (data_path/"image.png").string();
-  std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
+  std::string imageFile = (data_path/"RGB/expr3.png").string();
+  std::string landmarkFile = (data_path / "RGB/landmrks_pipnet_expr3.txt").string();
   std::shared_ptr<ImageRGBOnly> pImageUtility(new ImageRGBOnly);
   pImageUtility->input(imageFile, landmarkFile);
 
   // pBfmManager->genAvgFace();
 
-    // Perform optimization if weights were not loaded
+  // Perform optimization if weights were not loaded
   {
       // this is for better starting initialisation
       pBfmManager->m_dScale = 0.001;
@@ -67,10 +67,10 @@ int main(int argc, char *argv[])
       Optimizer optimizer(pBfmManager, pImageUtility);
       optimizer.setNumThreads(4);
       optimizer.setNumIterations(40);
-      optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 1., 1.);
-      optimizer.addSparseConstraints(0.004);
-      optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
-      optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
+      optimizer.addPriorConstraints(40., 40., 0.);
+      optimizer.addSparseConstraints(0.0001);
+      // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
+      // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
       optimizer.solve();
       optimizer.printReport();
       //optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aShapeCoef);
@@ -79,20 +79,21 @@ int main(int argc, char *argv[])
       std::cout << "Rotation\n" << pBfmManager->m_matR << std::endl;
       std::cout << "Translation\n" << pBfmManager->m_vecT << std::endl;
       std::cout << "scale \n" << pBfmManager->m_dScale << std::endl;
-  }
-
-    {
-      Optimizer optimizer(pBfmManager, pImageUtility);
-      optimizer.setNumThreads(4);
-      optimizer.setNumIterations(20);
-      optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 0.2, 1.);
-      optimizer.addSparseConstraints(0.007);
-      optimizer.solve();
-      optimizer.printReport();
     }
 
-    pBfmManager->updateFaceUsingParams();
-    setCurrentTexAsImage(pBfmManager, pImageUtility);
+    // {
+    //   Optimizer optimizer(pBfmManager, pImageUtility);
+    //   optimizer.setNumThreads(4);
+    //   optimizer.setNumIterations(20);
+    //   optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 0.1, 1.);
+    //   optimizer.addSparseConstraints(0.01);
+
+    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExtParams.data());
+    //   optimizer.solve();
+    //   optimizer.printReport();
+    // }
+
+    // setCurrentTexAsImage(pBfmManager, pImageUtility);
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
     visualizer.setupFace(pBfmManager, pImageUtility);
