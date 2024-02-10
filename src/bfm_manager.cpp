@@ -675,7 +675,7 @@ void BfmManager::genTransforms() {
   m_dScale = exp(scale[0]);
 }
 
-inline Vector3d BfmManager::transformUsingExtrinsics(const Vector3d& point) const {
+Vector3d BfmManager::transformUsingExtrinsics(const Vector3d& point) const {
     return m_dScale * m_matR * point + m_vecT;
 }
 
