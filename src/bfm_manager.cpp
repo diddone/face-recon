@@ -313,9 +313,10 @@ void BfmManager::writePly(std::string fn, bool writeLandmarks) const {
   int cnt = 0;
   float x, y, z;
   for (int iVertice = 0; iVertice < m_nVertices; iVertice++) {
-    x = float(m_vecCurrentBlendshape(iVertice * 3));
-    y = float(m_vecCurrentBlendshape(iVertice * 3 + 1));
-    z = float(m_vecCurrentBlendshape(iVertice * 3 + 2));
+    auto transfVertex = m_dScale * (m_matR * m_vecCurrentBlendshape.segment(3 * iVertice, 3)) + m_vecT;
+    x = float(transfVertex[0]);
+    y = float(transfVertex[1]);
+    z = float(transfVertex[2]);
     // TODO add translation and rotation?
     unsigned char r, g, b;
     auto d_to_ui = [](const double& x) { return uint(round(x * 255)); };

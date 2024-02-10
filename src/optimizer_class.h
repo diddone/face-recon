@@ -114,7 +114,6 @@ public:
           resetConstraints();
 
           pBfmManager->computeVertexNormals();
-          
           addPriorConstraints(shapePriorWeight, exprPriorWeight, texPriorWeight);
           addSparseConstraints(sparseWeight);
           addDepthWithNormalsConstraints(p2PointWeight, p2PlaneWeight);
@@ -122,6 +121,11 @@ public:
           // here we also update params
           solve();
           printReport();
+
+          if (summary.termination_type == ceres::CONVERGENCE) {
+            std::cout << "Convergence, stoping optimisation on iteration " << iter << std::endl;
+            break;
+          }
       }
 
       pBfmManager->updateFaceUsingParams();
