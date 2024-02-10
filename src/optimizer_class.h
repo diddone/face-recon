@@ -114,8 +114,8 @@ public:
           resetConstraints();
 
           pBfmManager->computeVertexNormals();
-          // here we divide by scale to rescale sigmas
-          addPriorConstraints(shapePriorWeight / pBfmManager->m_dScale, exprPriorWeight, texPriorWeight);
+          
+          addPriorConstraints(shapePriorWeight, exprPriorWeight, texPriorWeight);
           addSparseConstraints(sparseWeight);
           addDepthWithNormalsConstraints(p2PointWeight, p2PlaneWeight);
 
