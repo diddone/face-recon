@@ -4,6 +4,8 @@
 #include <utility>
 #include "cost_functions.cpp"
 
+#include <chrono>
+
 class Optimizer {
 
     shared_ptr<BfmManager> pBfmManager;
@@ -29,6 +31,7 @@ public:
 
     void resetConstraints() {
         problem = ceres::Problem();
+        summary = ceres::Solver::Summary();
     }
 
     void addPriorConstraints(double shapePriorWeight, double exprPriorWeight, double texPriorWeight) {
@@ -71,6 +74,15 @@ public:
         }
     }
 
+    void addDepthWithNormalsConstraints(double p2PointWeight, double p2PlaneWeight) {
+      std::shared_ptr<const ImageUtilityThing> pImageUtilityWithDepth = std::static_pointer_cast<const ImageUtilityThing>(pImageUtility);
+      for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+          problem.AddResidualBlock(DepthP2PlaneCostFunction::create(
+              pBfmManager, pImageUtilityWithDepth, vertexInd, p2PointWeight / pBfmManager->m_nVertices, p2PlaneWeight / pBfmManager->m_nVertices
+          ), nullptr, pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef);
+      }
+    }
+
     void addColorConstraints(double colorWeight) {
         // same as other two
         for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
@@ -87,6 +99,32 @@ public:
 
     void printReport() {
         std::cout << summary.BriefReport() << std::endl;
+    }
+
+    void solveWithDepthConstraints(
+      size_t maxNumIterations, double sparseWeight, double p2PointWeight, double p2PlaneWeight,
+        double shapePriorWeight = 1., double exprPriorWeight = 1.0, double texPriorWeight = 1.0
+      ) {
+
+      // we will do one step at time as we need to recompute normals
+      options.max_num_iterations = 1;
+      options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+      for (size_t iter = 0; iter < maxNumIterations; ++iter) {
+          std::cout << "Starting iteration " << iter << std::endl;
+          resetConstraints();
+
+          pBfmManager->computeVertexNormals();
+          // here we divide by scale to rescale sigmas
+          addPriorConstraints(shapePriorWeight / pBfmManager->m_dScale, exprPriorWeight, texPriorWeight);
+          addSparseConstraints(sparseWeight);
+          addDepthWithNormalsConstraints(p2PointWeight, p2PlaneWeight);
+
+          // here we also update params
+          solve();
+          printReport();
+      }
+
+      pBfmManager->updateFaceUsingParams();
     }
 
 private:

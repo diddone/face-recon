@@ -54,7 +54,7 @@ public:
 
         // Resize and normalize
         cv::resize(rgb_image, rgb_image, image_size);
-        rgb_image.convertTo(rgb_image, CV_64FC3);
+        rgb_image.convertTo(rgb_image, CV_32FC3);
         rgb_image /= 255.0f;
 
         // init intrinsics
@@ -85,7 +85,6 @@ public:
         }
         inFile.close();
     }
-
 
     // Retrieves the color values at a given (u, v) coordinate as double values.
     // These values can later be converted to actual RGB values for plotting or visualization.
@@ -163,6 +162,7 @@ public:
     // cv::Size image_size;
     double depth_init_scale = 0.5;
     // double scale = 1.;
+    cv::Mat normalMap;
 public:
     ImageUtilityThing(const std::string& yaml_file) {
         YAML::Node config = YAML::LoadFile(yaml_file);
@@ -198,7 +198,6 @@ public:
 
         // init landmarks vector
         landmarks_xyz = Eigen::VectorXd::Zero(3 * N_DLIB_LANDMARKS);
-
     }
 
     // cv::Size rescaleImageSize(const cv::Size& old_image_size) const {
@@ -259,10 +258,10 @@ public:
             }
             ++idx;
         }
-        auto depthInterMode = (scale > depth_init_scale) ? cv::INTER_NEAREST : cv::INTER_LINEAR;
-        cv::resize(cloud_x, cloud_x, image_size, 0., 0., depthInterMode);
-        cv::resize(cloud_y, cloud_y, image_size, 0., 0., depthInterMode);
-        cv::resize(cloud_z, cloud_z, image_size, 0., 0., depthInterMode);
+        // auto depthInterMode = (scale > depth_init_scale) ? cv::INTER_NEAREST : cv::INTER_LINEAR;
+        cv::resize(cloud_x, cloud_x, image_size, 0., 0., cv::INTER_LINEAR);
+        cv::resize(cloud_y, cloud_y, image_size, 0., 0., cv::INTER_LINEAR);
+        cv::resize(cloud_z, cloud_z, image_size, 0., 0., cv::INTER_LINEAR);
 
         //landmarks
 
@@ -285,6 +284,9 @@ public:
             ++landmarkCnt;
         }
         inFile.close();
+
+        // init normals
+        normalMap = cv::Mat::zeros(image_size.height, image_size.width, CV_32FC3);
     }
 
     // Retrieves the color values at a given (u, v) coordinate as double values.
@@ -357,6 +359,116 @@ public:
     // const Eigen::Matrix3d& getIntMat() const {
     //     return camera_matrix;
     // }
+
+    void computeNormals() {
+      Eigen::Vector3d v1, v2, curNormal;
+      for (size_t v = 0; v < image_size.height; ++v) {
+        for (size_t u = 0; u < image_size.width; ++u) {
+            size_t idx = 3 * (u + v * image_size.width);
+            if (v == 0 || v == image_size.height - 1 || u == 0 || u == image_size.width - 1) {
+                // Eigen::Vector3d({std::nan, std::nan, std::nan});
+                normalMap.at<cv::Vec3f>(v, u) = {0., 0., 0.};
+                continue;
+            }
+
+            v1 = UVtoXYZ(u + 1, v) - UVtoXYZ(u - 1, v);
+            v2 = UVtoXYZ(u, v + 1) - UVtoXYZ(u, v - 1);
+            if (v1.hasNaN() || v2.hasNaN()) {
+              normalMap.at<cv::Vec3f>(v, u) = {0., 0., 0.};
+              continue;
+            }
+            curNormal = v1.cross(v2);
+            if (curNormal.dot(UVtoXYZ(u, v)) > 0) {
+                curNormal *= -1;
+            }
+
+            cv::Vec3f& pixelValue = normalMap.at<cv::Vec3f>(v, u);
+            curNormal.normalize();
+            // opencv stores in bgr.
+            pixelValue[0] = float(curNormal[2]);
+            pixelValue[1] = float(curNormal[1]);
+            pixelValue[2] = float(curNormal[0]);
+        }
+      }
+
+      auto newMap = normalMap.clone();
+      cv::bilateralFilter(newMap, normalMap, 7, 50, 50);
+    }
+
+    void findMinMax(const cv::Mat& image) const {
+      std::vector<cv::Mat> channels;
+      cv::split(image, channels);
+
+      // Find the maximum value for each channel
+      std::vector<double> vals;
+      for (int i = 0; i < channels.size(); ++i) {
+          double minVal;
+          double maxVal;
+          cv::minMaxLoc(channels[i], &minVal, &maxVal);
+          std::cout << minVal << " " << maxVal << std::endl;
+      }
+      std::cout << "----------------\n";
+    }
+
+    void writeNormalsAsImage(std::string savePath) const {
+        // Create a Mat object from the image data
+        cv::Mat image(image_size.height, image_size.width, CV_8UC3); // 3 channels, unsigned char
+        // cv::Mat newMap = 255. * (0.5 * normalMap + 0.5);
+        // newMap.convertTo(image, CV_8UC3);
+        // findMinMax(image);
+        // Copy the image data from the vector to the Mat object
+        size_t height = image_size.height;
+        size_t width = image_size.width;
+        uchar b,g,r;
+        Eigen::Vector3d normal;
+        for (int h = 0; h < height; ++h) {
+          for (int w = 0; w < width; ++w) {
+            normal = UVtoNormal(w, h);
+            size_t idx = 3 * (h * width + w);
+            if (normal.hasNaN()) {
+              r = 128;
+              g = 128;
+              b = 128;
+            } else {
+              // linearly map [-1, 1] to [0, 255]
+              r = std::round((0.5 * normal[0]+ 0.5) * 255);
+              g = std::round((0.5 * normal[1]+ 0.5)* 255);
+              b = std::round((0.5 * normal[2]+ 0.5)* 255);
+            }
+            // in opencv image stored in bgr
+            image.at<cv::Vec3b>(h, w) = cv::Vec3b(
+                b,  // Blue channel
+                g,  // Green channel
+                r   // Red channel
+            );
+          }
+        }
+        // Save the Mat object to a PNG file
+        cv::imwrite(savePath, image);
+    }
+
+    template <typename T>
+    Eigen::Vector3d UVtoNormal(T u, T v) const {
+        if (u < 0 || u >= image_size.width || v < 0 || v >= image_size.height) {
+            // Return NaN values if the coordinates are out of bounds
+            return Eigen::Vector3d(std::numeric_limits<double>::quiet_NaN(),
+                                std::numeric_limits<double>::quiet_NaN(),
+                                std::numeric_limits<double>::quiet_NaN());
+        }
+
+        size_t idx = std::round(v) * image_size.width + std::round(u);
+        // normal stored as a floats
+        cv::Vec3f normal = normalMap.at<cv::Vec3f>(v, u);
+        float norm = cv::norm(normal);
+        // filter vectors with small norms, we store (0, 0, 0) for nans
+        if (norm < 0.3) {
+           return Eigen::Vector3d(std::numeric_limits<double>::quiet_NaN(),
+                                std::numeric_limits<double>::quiet_NaN(),
+                                std::numeric_limits<double>::quiet_NaN());
+        }
+        // open cv stores in bgr
+        return Eigen::Vector3d(normal[2], normal[1], normal[0]).normalized();
+    }
 
     void writePly(std::string fn) const {
         std::ofstream out;

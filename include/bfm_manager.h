@@ -165,6 +165,7 @@ public:
 
 	void genTransforms();
   void computeVertexNormals();
+  void setTextureAsNormals();
 	// std::vector<Eigen::Vector3d> computeVertexNormals();
 	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c, bool normalized=true);
 
@@ -467,7 +468,7 @@ public:
 	Eigen::VectorXd m_vecCurrentExpr;
 	Eigen::VectorXd m_vecCurrentBlendshape;
 
-    Eigen::VectorXd m_vecNormals;
+  Eigen::VectorXd m_vecNormals;
 
 	// landmarks
 	bool m_bUseLandmark;

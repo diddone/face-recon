@@ -604,6 +604,7 @@ void BfmManager::loadWeights(const std::string& filePath) {
     }
 
     inFile.close();
+    updateFaceUsingParams();
 }
 
 void BfmManager::setIdExtParams() {
@@ -704,6 +705,7 @@ void BfmManager::transformShapeExprBFM() {
     }
 
     this->setIdExtParams();
+    this->genFace();
 }
 
 void BfmManager::updateFaceUsingParams() {
@@ -712,11 +714,14 @@ void BfmManager::updateFaceUsingParams() {
 }
 
 void BfmManager::computeVertexNormals() {
+    // update face before
+    updateFaceUsingParams();
     for (size_t iFace = 0; iFace < m_nFaces; ++iFace) {
         unsigned int indexA = m_vecTriangleList[3 * iFace];
         unsigned int indexB = m_vecTriangleList[3 * iFace + 1];
         unsigned int indexC = m_vecTriangleList[3 * iFace + 2];
 
+        // we are multiplying by scale for preciseness
         Eigen::Vector3d vertA(
             m_vecCurrentBlendshape[3 * indexA],
             m_vecCurrentBlendshape[3 * indexA + 1],
@@ -732,6 +737,7 @@ void BfmManager::computeVertexNormals() {
             m_vecCurrentBlendshape[3 * indexC + 1],
             m_vecCurrentBlendshape[3 * indexC + 2]
         );
+
         // we are using area of the triangle as a weight
         Eigen::Vector3d faceNormal = computeFNormal(vertA, vertB, vertC, false);
         if (vertA.dot(faceNormal) > 0) {
@@ -760,6 +766,13 @@ Eigen::Vector3d BfmManager::computeFNormal(const Eigen::Vector3d& a, const Eigen
       return normal.normalized();
     } else {
       return normal;
+    }
+}
+
+void BfmManager::setTextureAsNormals() {
+    m_vecCurrentTex = (0.5 * m_vecNormals).array() + 0.5;
+    for (size_t vertexInd = 0; vertexInd < m_nIdPcs; ++vertexInd) {
+      m_vecCurrentTex.segment(3 * vertexInd, 3) = m_matR * m_vecCurrentTex.segment(3 * vertexInd, 3);
     }
 }
 // std::vector<Eigen::Vector3d> BfmManager::computeVertexNormals() {
