@@ -43,7 +43,7 @@ public:
 
         size_t numberOfExpressionParams = pBfmManager->m_nExprPcs;
         problem.AddResidualBlock(
-                PriorExprCostFunction::create(numberOfExpressionParams, exprPriorWeight), nullptr,
+                PriorExprCostFunction::create(numberOfExpressionParams, pBfmManager->m_vecExprEv, exprPriorWeight), nullptr,
                 pBfmManager->m_aExprCoef
         );
 
