@@ -206,8 +206,13 @@ public:
         //         0., 0., 0., 1.;
         double H = imageHeight;
         double W = imageWidth;
-        transf << (2. / W), 0., -1., 0.,
-                0., (-2. / W), (H / W), 0.,
+
+        double maxD = max(H, W);
+        double shiftX = H / W > 1 ? - W / H : -1;
+        double shiftY = H / W > 1 ? 1 : H / W;
+
+        transf << (2. / maxD), 0., shiftX, 0.,
+                0., (-2. / maxD), shiftY, 0.,
                 0., 0., 1., 0.,
                 0., 0., 0., 1.;
 
