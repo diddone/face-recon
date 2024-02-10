@@ -92,17 +92,40 @@ public:
         // set up vertex data (and buffer(s)) and configure vertex attributes
         // ------------------------------------------------------------------
         // comments got f***** up because of code reformatting
+        // ako aspect ratio e < 1 => kako preth   1, aspect ratio ; 1, -aspect ratio
+        // ako aspect ratio e > 1 =>  neshto, 1 ; -neshto ; 1     neshto  = 1 / aspect ratio
         float imageFrameVertices[] = {
                 // positions                 // colors           // imageTexture coords
-                1.0f, aspect_ratio, 0.0f, 1.0f,
+                1.0f, 1.0f, 0.0f, 1.0f,
                 0.0f, 0.0f, 1.0f, 1.0f, // top right
-                1.0f, -aspect_ratio, 0.0f, 0.0f,
+                1.0f, 1.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-                -1.0f, -aspect_ratio, 0.0f, 0.0f,
+                1.0f, 1.0f, 0.0f, 0.0f,
                 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-                -1.0f, aspect_ratio, 0.0f, 1.0f,
+                1.0f, 1.0f, 0.0f, 1.0f,
                 1.0f, 0.0f, 0.0f, 1.0f // top left
         };
+        if (aspect_ratio > 1) {
+            imageFrameVertices[0] = 1/aspect_ratio;
+            imageFrameVertices[1] = 1.0f;
+            imageFrameVertices[8] = 1/aspect_ratio;
+            imageFrameVertices[9] = -1.0f;
+            imageFrameVertices[16] = -1/aspect_ratio;
+            imageFrameVertices[17] = -1.0f;
+            imageFrameVertices[24] = -1/aspect_ratio;
+            imageFrameVertices[25] = 1.0f;
+        }
+        else {
+            imageFrameVertices[0] = 1.0f;
+            imageFrameVertices[1] = aspect_ratio;
+            imageFrameVertices[8] = 1.0f;
+            imageFrameVertices[9] = -aspect_ratio;
+            imageFrameVertices[16] = -1.0f;
+            imageFrameVertices[17] = -aspect_ratio;
+            imageFrameVertices[24] = -1.0f;
+            imageFrameVertices[25] = aspect_ratio;
+        }
+
         unsigned int imageFrameIndices[] = {
                 0, 1, 3, // first triangle
                 1, 2, 3  // second triangle
