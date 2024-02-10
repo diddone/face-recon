@@ -163,6 +163,7 @@ public:
     double depth_init_scale = 0.5;
     // double scale = 1.;
     cv::Mat normalMap;
+    bool normalsComputed = false;
 public:
     ImageUtilityThing(const std::string& yaml_file) {
         YAML::Node config = YAML::LoadFile(yaml_file);
@@ -393,6 +394,7 @@ public:
 
       auto newMap = normalMap.clone();
       cv::bilateralFilter(newMap, normalMap, 7, 50, 50);
+      normalsComputed = true;
     }
 
     void findMinMax(const cv::Mat& image) const {
@@ -449,6 +451,9 @@ public:
 
     template <typename T>
     Eigen::Vector3d UVtoNormal(T u, T v) const {
+        if (!normalsComputed) {
+          throw std::logic_error("Normals for imageUtility should be computed first");
+        }
         if (u < 0 || u >= image_size.width || v < 0 || v >= image_size.height) {
             // Return NaN values if the coordinates are out of bounds
             return Eigen::Vector3d(std::numeric_limits<double>::quiet_NaN(),

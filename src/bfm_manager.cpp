@@ -675,6 +675,10 @@ void BfmManager::genTransforms() {
   m_dScale = exp(scale[0]);
 }
 
+inline Vector3d BfmManager::transformUsingExtrinsics(const Vector3d& point) const {
+    return m_dScale * m_matR * point + m_vecT;
+}
+
 void BfmManager::transformShapeExprBFM() {
     Matrix3d R = m_dScale * m_matR;
     auto translation = m_vecT;
@@ -723,21 +727,21 @@ void BfmManager::computeVertexNormals() {
         unsigned int indexC = m_vecTriangleList[3 * iFace + 2];
 
         // we are multiplying by scale for preciseness
-        Eigen::Vector3d vertA(
+        Eigen::Vector3d vertA = transformUsingExtrinsics(Vector3d(
             m_vecCurrentBlendshape[3 * indexA],
             m_vecCurrentBlendshape[3 * indexA + 1],
             m_vecCurrentBlendshape[3 * indexA + 2]
-        );
-        Eigen::Vector3d vertB(
+        ));
+        Eigen::Vector3d vertB = transformUsingExtrinsics(Vector3d(
             m_vecCurrentBlendshape[3 * indexB],
             m_vecCurrentBlendshape[3 * indexB + 1],
             m_vecCurrentBlendshape[3 * indexB + 2]
-        );
-        Eigen::Vector3d vertC(
+        ));
+        Eigen::Vector3d vertC = transformUsingExtrinsics(Vector3d(
             m_vecCurrentBlendshape[3 * indexC],
             m_vecCurrentBlendshape[3 * indexC + 1],
             m_vecCurrentBlendshape[3 * indexC + 2]
-        );
+        ));
 
         // we are using area of the triangle as a weight
         Eigen::Vector3d faceNormal = computeFNormal(vertA, vertB, vertC, false);
@@ -770,10 +774,12 @@ Eigen::Vector3d BfmManager::computeFNormal(const Eigen::Vector3d& a, const Eigen
     }
 }
 
-void BfmManager::setTextureAsNormals() {
+void BfmManager::setTextureAsNormals(bool rotateNormals) {
     m_vecCurrentTex = (0.5 * m_vecNormals).array() + 0.5;
-    for (size_t vertexInd = 0; vertexInd < m_nIdPcs; ++vertexInd) {
-      m_vecCurrentTex.segment(3 * vertexInd, 3) = m_matR * m_vecCurrentTex.segment(3 * vertexInd, 3);
+    if (rotateNormals) {
+      for (size_t vertexInd = 0; vertexInd < m_nIdPcs; ++vertexInd) {
+        m_vecCurrentTex.segment(3 * vertexInd, 3) = m_matR * m_vecCurrentTex.segment(3 * vertexInd, 3);
+      }
     }
 }
 // std::vector<Eigen::Vector3d> BfmManager::computeVertexNormals() {

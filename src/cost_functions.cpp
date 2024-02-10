@@ -26,9 +26,9 @@ struct SparseCostFunction
 {
 	SparseCostFunction(
         const std::shared_ptr<const BfmManager>& _pBfmManager, const Matrix3d& _cameraMatrix,
-        size_t landmarkInd, Eigen::Vector2i  landmarkUV, double weight
+        size_t _landmarkInd, Eigen::Vector2i _landmarkUV, double _weight
     ):
-	pBfmManager(_pBfmManager), cameraMatrix(_cameraMatrix), landmarkInd(landmarkInd), landmarkUV(std::move(landmarkUV)), weight(weight){}
+	pBfmManager(_pBfmManager), cameraMatrix(_cameraMatrix), landmarkInd(_landmarkInd), landmarkUV(std::move(_landmarkUV)), weight(_weight){}
 
 
 	template<typename T>
@@ -87,8 +87,8 @@ int get_integer_part( double x ){
 }
 
 struct DepthP2PCostFunction {
-    DepthP2PCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double weight):
-    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(vertexInd), weight(weight) {}
+    DepthP2PCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t _vertexInd, double _weight):
+    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(_vertexInd), weight(_weight) {}
 
 
 template<typename T>
@@ -162,14 +162,8 @@ template<typename T>
 };
 
 struct DepthP2PlaneCostFunction {
-    DepthP2PlaneCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double p2PointWeight, double p2PlaneWeight):
-    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(vertexInd), p2PointWeight(p2PointWeight), p2PlaneWeight(p2PlaneWeight) {
-      // normal should be also rotated accordingly
-      auto viewDir = pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3);
-      auto normal = pBfmManager->m_matR * pBfmManager->m_vecNormals.segment(3 * vertexInd, 3);
-      double coef = (viewDir.dot(normal) < 0) ? 1. : -1.;
-      sourceNormal(coef * normal);
-    }
+    DepthP2PlaneCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t _vertexInd, double _p2PointWeight, double _p2PlaneWeight):
+    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(_vertexInd), p2PointWeight(_p2PointWeight), p2PlaneWeight(_p2PlaneWeight), sourceNormal(pBfmManager->m_vecNormals.segment(3 * vertexInd, 3).array()) {}
 
 template<typename T>
  bool operator()(const T* const pose, const T* const shapeCoefs, const T* const exprCoefs, T* residual) const  {
@@ -208,8 +202,8 @@ template<typename T>
 
         Vector3d target = pImageUtility->UVtoXYZ(uImage, vImage);
         Vector3d targetNormal = pImageUtility->UVtoNormal(uImage, vImage);
-        // invalidate if has nans or angle between normals > 45 degree
-        if (target.hasNaN() || targetNormal.hasNaN() || targetNormal.dot(sourceNormal) < 0.7) {
+        // invalidate if has nans or angle between normals > 60 degrees
+        if (target.hasNaN() || targetNormal.hasNaN() || targetNormal.dot(sourceNormal) < 0.5) {
             residual[0] = T(0);
             residual[1] = T(0);
         } else {
@@ -229,8 +223,8 @@ template<typename T>
         // projected[1] *= depth;
         // auto invCameraMatrix = imageUtility.inv_camera_matrix;
         // for (size_t i = 0; i < 3; ++i) {
-  //  backProjected[i] = T(invCameraMatrix(i, 0)) * projected[0] + T(invCameraMatrix(i, 1)) * projected[1] + T(invCameraMatrix(i, 2)) * projected[2];
-  // }
+        //  backProjected[i] = T(invCameraMatrix(i, 0)) * projected[0] + T(invCameraMatrix(i, 1)) * projected[1] + T(invCameraMatrix(i, 2)) * projected[2];
+        // }
 
         // // compare backProjected with initially trasnformed values
         // residual[0] = T(sqrt(weight)) * (transformed[0] - backProjected[0]);
@@ -371,8 +365,8 @@ Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& p
 }
 
 struct ColorCostFunction {
-    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight):
-        pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexId(vertexId), weight(weight) {
+    ColorCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t _vertexId, double _weight):
+        pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexId(_vertexId), weight(_weight) {
             trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexId);
         }
 
