@@ -161,6 +161,100 @@ template<typename T>
         const double weight;
 };
 
+struct DepthP2PlaneCostFunction {
+    DepthP2PlaneCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double p2PointWeight, double p2PlaneWeight):
+    pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(vertexInd), p2PointWeight(p2PointWeight), p2PlaneWeight(p2PlaneWeight) {
+      // normal should be also rotated accordingly
+      auto viewDir = pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3);
+      auto normal = pBfmManager->m_matR * pBfmManager->m_vecNormals.segment(3 * vertexInd, 3);
+      double coef = (viewDir.dot(normal) < 0) ? 1. : -1.;
+      sourceNormal(coef * normal);
+    }
+
+template<typename T>
+ bool operator()(const T* const pose, const T* const shapeCoefs, const T* const exprCoefs, T* residual) const  {
+        T vXYZ[3] = {
+            T(pBfmManager->m_vecShapeMu(3 * vertexInd) + pBfmManager->m_vecExprMu(3 * vertexInd)),
+            T(pBfmManager->m_vecShapeMu(3 * vertexInd + 1) + pBfmManager->m_vecExprMu(3 * vertexInd + 1)),
+            T(pBfmManager->m_vecShapeMu(3 * vertexInd + 2) + pBfmManager->m_vecExprMu(3 * vertexInd + 2))
+        };
+
+        for(size_t i = 0; i < pBfmManager->m_nIdPcs; ++i) {
+            vXYZ[0] += pBfmManager->m_matShapePc(3 * vertexInd, i) * shapeCoefs[i];
+            vXYZ[1] += pBfmManager->m_matShapePc(3 * vertexInd + 1, i) * shapeCoefs[i];
+            vXYZ[2] += pBfmManager->m_matShapePc(3 * vertexInd + 2, i) * shapeCoefs[i];
+        }
+
+        for(size_t i = 0; i < pBfmManager->m_nExprPcs; ++i) {
+            vXYZ[0] += pBfmManager->m_matExprPc(3 * vertexInd, i) * exprCoefs[i];
+            vXYZ[1] += pBfmManager->m_matExprPc(3 * vertexInd + 1, i) * exprCoefs[i];
+            vXYZ[2] += pBfmManager->m_matExprPc(3 * vertexInd + 2, i) * exprCoefs[i];
+        }
+
+        T transformed[3], projected[3], backProjected[3];
+        applyExtTransform(pose, vXYZ, transformed);
+
+        auto cameraMatrix = pImageUtility->getIntMat();
+        for (size_t i = 0; i < 3; ++i) {
+            projected[i] = T(cameraMatrix(i, 0)) * transformed[0] + T(cameraMatrix(i, 1)) * transformed[1] + T(cameraMatrix(i, 2)) * transformed[2];
+        }
+        projected[0] = projected[0] / projected[2];
+        projected[1] = projected[1] / projected[2];
+
+        int uImage, vImage;
+        // here we get value of ceres::Jet
+        uImage = get_integer_part(projected[0]);
+        vImage = get_integer_part(projected[1]);
+
+        Vector3d target = pImageUtility->UVtoXYZ(uImage, vImage);
+        Vector3d targetNormal = pImageUtility->UVtoNormal(uImage, vImage);
+        // invalidate if has nans or angle between normals > 45 degree
+        if (target.hasNaN() || targetNormal.hasNaN() || targetNormal.dot(sourceNormal) < 0.7) {
+            residual[0] = T(0);
+            residual[1] = T(0);
+        } else {
+            // point to point term
+            residual[0] =  T(sqrt(p2PointWeight)) * (T(target[2]) - projected[2]);
+            residual[1] = T(0);
+            // dot product between (target - transformed) and sourceNormal
+            for (size_t k = 0; k < 3; ++k) {
+              residual[1] += (T(target[k]) - transformed[k]) * T(sourceNormal[k]);
+            }
+
+            residual[1] *= T(sqrt(p2PlaneWeight));
+        }
+        // multiply by weights and divide by number of valid samples
+        // multiply by real depth
+        // projected[0] *= depth;
+        // projected[1] *= depth;
+        // auto invCameraMatrix = imageUtility.inv_camera_matrix;
+        // for (size_t i = 0; i < 3; ++i) {
+  //  backProjected[i] = T(invCameraMatrix(i, 0)) * projected[0] + T(invCameraMatrix(i, 1)) * projected[1] + T(invCameraMatrix(i, 2)) * projected[2];
+  // }
+
+        // // compare backProjected with initially trasnformed values
+        // residual[0] = T(sqrt(weight)) * (transformed[0] - backProjected[0]);
+        // residual[1] = T(sqrt(weight)) * (transformed[1] - backProjected[1]);
+        // residual[2] = T(sqrt(weight)) * (transformed[2] - backProjected[2]);
+        return true;
+    }
+
+    static ceres::CostFunction* create(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t vertexInd, double p2PointWeight, double p2PlaneWeight) {
+        return new ceres::AutoDiffCostFunction<DepthP2PlaneCostFunction, 2, 7, N_SHAPE_PARAMS, N_EXPR_PARAMS>(
+            new DepthP2PlaneCostFunction(_pBfmManager, _pImageUtility, vertexInd, p2PointWeight, p2PlaneWeight)
+        );
+    }
+
+    private:
+        const std::shared_ptr<const BfmManager> pBfmManager;
+        const std::shared_ptr<const ImageUtilityThing> pImageUtility;
+        const size_t vertexInd;
+        const double p2PointWeight;
+        const double p2PlaneWeight;
+        const Vector3d sourceNormal;
+};
+
+
 struct PriorShapeCostFunction {
 
     PriorShapeCostFunction(size_t nIdPcs, const Eigen::VectorXd& sigmasRef, double weight): nIdPcs(nIdPcs), sigmasRef(sigmasRef), weight(weight)
@@ -215,26 +309,27 @@ struct PriorTexCostFunction {
 
 struct PriorExprCostFunction {
 
-    PriorExprCostFunction(size_t nExprPcs, double weight): nExprPcs(nExprPcs), weight(weight)
+    PriorExprCostFunction(size_t nExprPcs, const Eigen::VectorXd& sigmasRef, double weight): nExprPcs(nExprPcs), sigmasRef(sigmasRef), weight(weight)
     {}
 
     template<typename T>
 	bool operator()(const T* const exprCoefs, T* residual) const  {
         for(size_t i = 0; i < nExprPcs; ++i) {
-            residual[i] = T(sqrt(weight)) * exprCoefs[i];
+            residual[i] = T(sqrt(weight / sigmasRef[i])) * exprCoefs[i];
         }
         return true;
     }
 
-    static ceres::CostFunction* create(const size_t nExprPcs, double weight) {
+    static ceres::CostFunction* create(const size_t nExprPcs, const Eigen::VectorXd& sigmasRef, double weight) {
         return new ceres::AutoDiffCostFunction<PriorExprCostFunction, N_EXPR_PARAMS, N_EXPR_PARAMS>(
-            new PriorExprCostFunction(nExprPcs, weight)
+            new PriorExprCostFunction(nExprPcs, sigmasRef, weight)
         );
     }
 
     private:
         const size_t nExprPcs;
         const double weight;
+        const Eigen::VectorXd& sigmasRef;
 };
 
 Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& pBfmManager, const std::shared_ptr<const ImageRGBOnly>& pImageUtility, size_t vertexInd) {
