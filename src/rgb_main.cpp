@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
 
   // intrinsics parameters
-  std::string imageFile = (data_path/"RGB/expr3.png").string();
-  std::string landmarkFile = (data_path / "RGB/landmrks_pipnet_expr3.txt").string();
+  std::string imageFile = (data_path/"RGB/small.png").string();
+  std::string landmarkFile = (data_path / "RGB/landmrks_pipnet_small.txt").string();
   std::shared_ptr<ImageRGBOnly> pImageUtility(new ImageRGBOnly);
   pImageUtility->input(imageFile, landmarkFile);
 
@@ -65,16 +65,16 @@ int main(int argc, char *argv[])
       pBfmManager->m_dScale = 0.001;
       pBfmManager->genExtParams();
       Optimizer optimizer(pBfmManager, pImageUtility);
-      optimizer.setNumThreads(4);
-      optimizer.setNumIterations(40);
-      optimizer.addPriorConstraints(40., 40., 0.);
-      optimizer.addSparseConstraints(0.0001);
-      // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
-      // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
+      optimizer.setNumThreads(1);
+      optimizer.setNumIterations(50);
+      optimizer.addPriorConstraints(50., 50., 0.);
+      optimizer.addSparseConstraints(0.0006);
+    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
+    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
       optimizer.solve();
       optimizer.printReport();
-      //optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aShapeCoef);
-      //optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aExprCoef);
+      optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aShapeCoef);
+      optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aExprCoef);
       pBfmManager->genTransforms();
       std::cout << "Rotation\n" << pBfmManager->m_matR << std::endl;
       std::cout << "Translation\n" << pBfmManager->m_vecT << std::endl;
@@ -83,10 +83,10 @@ int main(int argc, char *argv[])
 
     // {
     //   Optimizer optimizer(pBfmManager, pImageUtility);
-    //   optimizer.setNumThreads(4);
+    //   optimizer.setNumThreads(1);
     //   optimizer.setNumIterations(20);
-    //   optimizer.addPriorConstraints(1.0 / pBfmManager->m_dScale, 0.1, 1.);
-    //   optimizer.addSparseConstraints(0.01);
+    //   optimizer.addPriorConstraints(100., 100., 0.);
+    //   optimizer.addSparseConstraints(0.0001);
 
     //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExtParams.data());
     //   optimizer.solve();

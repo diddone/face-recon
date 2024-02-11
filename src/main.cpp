@@ -72,9 +72,8 @@ int main(int argc, char *argv[])
         LOG(INFO) << "No weights file found. Proceeding without loading weights.";
     }
 
-
-    std::string imageFile = (data_path/"rgbd_face_dataset_training/013_11_image.png").string();
-    std::string cloudFile = (data_path/"rgbd_face_dataset_training/013_11_cloud.pcd").string();
+    std::string imageFile = (data_path/"samples/013_11_image.png").string();
+    std::string cloudFile = (data_path/"samples/013_11_cloud.pcd").string();
     std::string landmarkFile = (data_path / "samples/landmarkc_013_11_image.txt").string();
     pImageUtility->input(imageFile, cloudFile, landmarkFile);
     VectorXd imageLandmarks = pImageUtility->getXYZLandmarks();

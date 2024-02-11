@@ -178,6 +178,17 @@ target_compile_features(rgb_main PRIVATE cxx_std_17)
 target_link_libraries(rgb_main glfw glad bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
 target_compile_features(rgb_main PRIVATE cxx_std_17)
 
+# expression transfer
+add_executable(expr_trans src/expr_transfer.cpp src/utils.h include/glad/src/glad.c
+src/shader_class.h include/stb_image.h src/utils.h
+src/face_mesh.h
+src/visualizer.h
+src/optimizer_class.h)
+target_include_directories(expr_trans PUBLIC ./include)
+target_compile_features(expr_trans PRIVATE cxx_std_17)
+target_link_libraries(expr_trans glfw glad bfm_manager yaml-cpp ${PCL_LIBRARIES} Ceres::ceres)
+target_compile_features(expr_trans PRIVATE cxx_std_17)
+
 # Visualizer
 add_executable(visualizer src/visualizer.cpp include/glad/src/glad.c
         src/shader_class.h include/stb_image.h src/utils.h
