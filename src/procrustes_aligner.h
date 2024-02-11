@@ -40,7 +40,7 @@ public:
 			}
 		}
         std::cout << "Number of valid points in procrusters " << nValidPoints << std::endl;
-        VectorXd sourcePoints(3 * nValidPoints), targetPoints(3 * nValidPoints);
+        VectorXd sourcePoints{3 * nValidPoints}, targetPoints{3 * nValidPoints};
         size_t cnt = 0;
         for (size_t i = 0; i < numPoints; ++i) {
 			if (!std::isnan(targetPoints_[3 * i]) &&

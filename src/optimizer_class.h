@@ -74,9 +74,9 @@ public:
         }
     }
 
-    void addDepthWithNormalsConstraints(double p2PointWeight, double p2PlaneWeight) {
+    void addDepthWithNormalsConstraints(double p2PointWeight, double p2PlaneWeight, size_t useEveryNVertices=1) {
       std::shared_ptr<const ImageUtilityThing> pImageUtilityWithDepth = std::static_pointer_cast<const ImageUtilityThing>(pImageUtility);
-      for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+      for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; vertexInd+=useEveryNVertices) {
           problem.AddResidualBlock(DepthP2PlaneCostFunction::create(
               pBfmManager, pImageUtilityWithDepth, vertexInd, p2PointWeight / pBfmManager->m_nVertices, p2PlaneWeight / pBfmManager->m_nVertices
           ), nullptr, pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef);
@@ -122,8 +122,13 @@ public:
           solve();
           printReport();
 
-          if (summary.termination_type == ceres::CONVERGENCE) {
-            std::cout << "Convergence, stoping optimisation on iteration " << iter << std::endl;
+          if (summary.termination_type == ceres::CONVERGENCE || summary.final_cost >= summary.initial_cost) {
+            std::cout << "Stoping optimisation on iteration " << iter << std::endl;
+            if (summary.termination_type == ceres::CONVERGENCE) {
+              std::cout << " Converged" << std::endl;
+            } else {
+              std::cout << " Cost function is not increasing" << std::endl;
+            }
             break;
           }
       }
