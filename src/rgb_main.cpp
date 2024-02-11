@@ -21,7 +21,7 @@
 #include <ceres/rotation.h>
 
 const std::string LOG_PATH("./log");
-const std::string WEIGHTS_FILE_PATH("../Data/uninit.txt"); // Path to the weights file
+const std::string WEIGHTS_FILE_PATH("../Data/expr3_weights.txt"); // Path to the weights file
 
 int main(int argc, char *argv[])
 {
@@ -50,6 +50,20 @@ int main(int argc, char *argv[])
     LOG(INFO) << "Logging initialized successfully.";
 
 	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
+  bool weightsLoaded = false;
+  if (boost::filesystem::exists(WEIGHTS_FILE_PATH)) {
+    try {
+        pBfmManager->loadWeights(WEIGHTS_FILE_PATH);
+        pBfmManager->updateFaceUsingParams(); // Apply the loaded parameters
+        LOG(INFO) << "Weights loaded successfully from " << WEIGHTS_FILE_PATH;
+        weightsLoaded = true;
+    } catch (const std::exception& e) {
+            LOG(ERROR) << "Error loading weights: " << e.what();
+            return 1;
+        }
+    } else {
+          LOG(INFO) << "No weights file found. Proceeding without loading weights.";
+  }
 
   // intrinsics parameters
   std::string imageFile = (data_path/"RGB/small.png").string();
@@ -93,7 +107,8 @@ int main(int argc, char *argv[])
     //   optimizer.printReport();
     // }
 
-    // setCurrentTexAsImage(pBfmManager, pImageUtility);
+
+    setCurrentTexAsImage(pBfmManager, pImageUtility);
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
     visualizer.setupFace(pBfmManager, pImageUtility);

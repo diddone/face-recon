@@ -54,8 +54,9 @@ public:
 
         // Resize and normalize
         cv::resize(rgb_image, rgb_image, image_size);
-        rgb_image.convertTo(rgb_image, CV_32FC3);
+        rgb_image.convertTo(rgb_image, CV_64FC3);
         rgb_image /= 255.0f;
+
 
         // init intrinsics
         double Fx = 50.;
@@ -259,13 +260,17 @@ public:
             }
             ++idx;
         }
+
         // auto depthInterMode = (scale > depth_init_scale) ? cv::INTER_NEAREST : cv::INTER_LINEAR;
         cv::resize(cloud_x, cloud_x, image_size, 0., 0., cv::INTER_LINEAR);
         cv::resize(cloud_y, cloud_y, image_size, 0., 0., cv::INTER_LINEAR);
         cv::resize(cloud_z, cloud_z, image_size, 0., 0., cv::INTER_LINEAR);
 
-        //landmarks
+        // init normals
+        normalMap = cv::Mat::zeros(image_size.height, image_size.width, CV_32FC3);
+        computeNormals();
 
+        //landmarks
         std::ifstream inFile;
         inFile.open(landmarkFile, std::ios::in);
         assert(inFile.is_open());
@@ -285,9 +290,6 @@ public:
             ++landmarkCnt;
         }
         inFile.close();
-
-        // init normals
-        normalMap = cv::Mat::zeros(image_size.height, image_size.width, CV_32FC3);
     }
 
     // Retrieves the color values at a given (u, v) coordinate as double values.
@@ -365,8 +367,7 @@ public:
       Eigen::Vector3d v1, v2, curNormal;
       for (size_t v = 0; v < image_size.height; ++v) {
         for (size_t u = 0; u < image_size.width; ++u) {
-            size_t idx = 3 * (u + v * image_size.width);
-            if (v == 0 || v == image_size.height - 1 || u == 0 || u == image_size.width - 1) {
+            if (v == 0 || v == init_depth_image_size.height - 1 || u == 0 || u == image_size.width - 1) {
                 // Eigen::Vector3d({std::nan, std::nan, std::nan});
                 normalMap.at<cv::Vec3f>(v, u) = {0., 0., 0.};
                 continue;
@@ -393,6 +394,19 @@ public:
       }
 
       auto newMap = normalMap.clone();
+      // here we apply median filtering
+      std::vector<cv::Mat> channels;
+      newMap = (normalMap * 0.5 + 0.5) * 255;
+      newMap.convertTo(newMap, CV_8UC3);
+      cv::split(newMap, channels);
+      // Apply median filter to each channel separately
+      for (int i = 0; i < 3; ++i) {
+          cv::medianBlur(channels[i], channels[i], 5);
+      }
+      cv::merge(channels, newMap);
+      newMap.convertTo(newMap, CV_32FC3);
+      normalMap = (newMap / 255 - 0.5) * 2.;
+      newMap = normalMap.clone();
       cv::bilateralFilter(newMap, normalMap, 7, 50, 50);
       normalsComputed = true;
     }

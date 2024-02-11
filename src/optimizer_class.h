@@ -103,7 +103,8 @@ public:
 
     void solveWithDepthConstraints(
       size_t maxNumIterations, double sparseWeight, double p2PointWeight, double p2PlaneWeight,
-        double shapePriorWeight = 1., double exprPriorWeight = 1.0, double texPriorWeight = 1.0
+        double shapePriorWeight = 1., double exprPriorWeight = 1.0, double texPriorWeight = 1.0,
+        size_t useEveryNVertices=1
       ) {
 
       // we will do one step at time as we need to recompute normals
@@ -116,7 +117,7 @@ public:
           pBfmManager->computeVertexNormals();
           addPriorConstraints(shapePriorWeight, exprPriorWeight, texPriorWeight);
           addSparseConstraints(sparseWeight);
-          addDepthWithNormalsConstraints(p2PointWeight, p2PlaneWeight);
+          addDepthWithNormalsConstraints(p2PointWeight, p2PlaneWeight, useEveryNVertices);
 
           // here we also update params
           solve();

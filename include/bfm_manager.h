@@ -164,7 +164,7 @@ public:
 	 */
 
 	void genTransforms();
-  inline Vector3d transformUsingExtrinsics(const Eigen::Vector3d& point) const;
+  Vector3d transformUsingExtrinsics(const Eigen::Vector3d& point) const;
   void computeVertexNormals();
   void setTextureAsNormals(bool rotateNormals=false);
 	// std::vector<Eigen::Vector3d> computeVertexNormals();
