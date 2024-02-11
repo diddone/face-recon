@@ -86,6 +86,16 @@ int get_integer_part( double x ){
     return static_cast<int>(x);
 }
 
+template<typename SCALAR, int N>
+double get_double_part( const ceres::Jet<SCALAR, N>& x ) {
+    return static_cast<double>(x.a);
+}
+
+double get_double_part( double x ){
+    return static_cast<double>(x);
+}
+
+
 struct DepthP2PCostFunction {
     DepthP2PCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager, const std::shared_ptr<const ImageUtilityThing> _pImageUtility, const size_t _vertexInd, double _weight):
     pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexInd(_vertexInd), weight(_weight) {}
@@ -126,11 +136,12 @@ template<typename T>
         uImage = get_integer_part(projected[0]);
         vImage = get_integer_part(projected[1]);
 
-        double depth_value = pImageUtility->UVtoDepth(uImage, vImage);
-        if (std::isnan(depth_value)) {
-            residual[0] = T(0);
+        double depth_value = get_double_part(projected[2]);
+        double gt_depth = pImageUtility->UVtoDepth(uImage, vImage);
+        if (std::isnan(gt_depth) || std::fabs(gt_depth - depth_value) > 3e-1) {
+            residual[0] = T(0.);
         } else {
-            residual[0] =  T(sqrt(weight)) * (T(depth_value) - projected[2]);
+            residual[0] =  T(sqrt(weight)) * (T(gt_depth) - projected[2]);
         }
         // multiply by weights and divide by number of valid samples
         // multiply by real depth
@@ -202,13 +213,16 @@ template<typename T>
 
         Vector3d target = pImageUtility->UVtoXYZ(uImage, vImage);
         Vector3d targetNormal = pImageUtility->UVtoNormal(uImage, vImage);
+
+        double depth_value = get_double_part(projected[2]);
+        double gt_depth = target[2];
         // invalidate if has nans or angle between normals > 60 degrees
-        if (target.hasNaN() || targetNormal.hasNaN() || targetNormal.dot(sourceNormal) < 0.5) {
+        if (target.hasNaN() || targetNormal.hasNaN() || targetNormal.dot(sourceNormal) < 0.5 || std::fabs(gt_depth - depth_value) > 3e-1) {
             residual[0] = T(0);
             residual[1] = T(0);
         } else {
             // point to point term
-            residual[0] =  T(sqrt(p2PointWeight)) * (T(target[2]) - projected[2]);
+            residual[0] =  T(sqrt(p2PointWeight)) * (T(gt_depth) - projected[2]);
             residual[1] = T(0);
             // dot product between (target - transformed) and sourceNormal
             for (size_t k = 0; k < 3; ++k) {
@@ -474,3 +488,75 @@ struct ColorWithLightningCostFunction {
         Vector3d trueColor;
         VectorXd shBasis;
 };
+
+
+struct ResultsDepthCostFunc {
+  double pure_p2p;
+  double p2p;
+  double p2plane;
+};
+
+std::ostream& operator<<(std::ostream& os, const ResultsDepthCostFunc& result) {
+    os << "Pure Point-to-Point: " << result.pure_p2p << "\n";
+    os << "Point-to-Point: " << result.p2p << "\n";
+    os << "Point-to-Plane: " << result.p2plane << std::endl;
+    return os;
+}
+
+double computeSparseCostFunction(const std::shared_ptr<const BfmManager> pBfmManager, const std::shared_ptr<const ImageUtilityThing> pImageUtility) {
+  double sparseCost = 0.;
+  Eigen::VectorXi imageLandmarks = pImageUtility->getUVLandmarks();
+  size_t numberOfLandmarks = pBfmManager->m_mapLandmarkIndices.size();
+
+  for (size_t iLandmark = 0; iLandmark < numberOfLandmarks; ++iLandmark) {
+      Eigen::Vector2i landmark(imageLandmarks[2 * iLandmark], imageLandmarks[2 * iLandmark + 1]);
+      auto costFunc = SparseCostFunction{pBfmManager, pImageUtility->getIntMat(), iLandmark, landmark, 1.0};
+
+      double residual[2];
+      costFunc(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, residual);
+      sparseCost += ((residual[0] * residual[0]) + (residual[1] * residual[1])) / numberOfLandmarks;
+  }
+
+  return sparseCost;
+}
+
+ResultsDepthCostFunc computeDepthCostFunction(const std::shared_ptr<const BfmManager> pBfmManager, const std::shared_ptr<const ImageUtilityThing> pImageUtility) {
+  double pure_p2p = 0.;
+  double p2p = 0.;
+  double p2plane = 0.;
+
+  // for (size_t t = 28;  t < 32; ++t) {
+  //   size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
+  //   auto uvVec = pImageUtility->getUVLandmarks();
+  //   auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]);
+  //   std::cout << "Lanmrk vec " << landmarkVec[0] << " " << landmarkVec[1] << " " << landmarkVec[2] << std::endl;
+
+  //   auto p2pFunc = DepthP2PCostFunction{pBfmManager, pImageUtility, vertexInd, 1.0};
+  //   auto p2PlaneFunc = DepthP2PlaneCostFunction{pBfmManager, pImageUtility, vertexInd, 1.0, 1.0};
+
+  //   double p2pRes[1];
+  //   double p2PlaneRes[2];
+  //   p2pFunc(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, p2pRes);
+  //   p2PlaneFunc(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, p2PlaneRes);
+
+  //   pure_p2p += (p2pRes[0] * p2pRes[0]) / 4;
+  //   p2p += (p2PlaneRes[0] * p2PlaneRes[0]) / 4;
+  //   p2plane += (p2PlaneRes[1] * p2PlaneRes[1]) / 4;
+  // }
+  for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+
+    auto p2pFunc = DepthP2PCostFunction{pBfmManager, pImageUtility, vertexInd, 1.0};
+    auto p2PlaneFunc = DepthP2PlaneCostFunction{pBfmManager, pImageUtility, vertexInd, 1.0, 1.0};
+
+    double p2pRes[1];
+    double p2PlaneRes[2];
+    p2pFunc(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, p2pRes);
+    p2PlaneFunc(pBfmManager->m_aExtParams.data(), pBfmManager->m_aShapeCoef, pBfmManager->m_aExprCoef, p2PlaneRes);
+
+    pure_p2p += (p2pRes[0] * p2pRes[0]) / pBfmManager->m_nVertices;
+    p2p += (p2PlaneRes[0] * p2PlaneRes[0]) / pBfmManager->m_nVertices;
+    p2plane += (p2PlaneRes[1] * p2PlaneRes[1]) / pBfmManager->m_nVertices;
+  }
+
+  return {pure_p2p, p2p, p2plane};
+}

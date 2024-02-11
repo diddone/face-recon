@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
     // pBfmManager->genAvgFace();
     // pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
     if (!weightsLoaded) {
+        std::cout << "Starting sparse optimsiation" << std::endl;
         ProcrustesAligner procruster;
         ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
         pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
@@ -143,8 +144,21 @@ int main(int argc, char *argv[])
     //     );
     //     std::cout << "Residuals " << residual[0] * residual[0] << " " << residual[1] * residual[1] << std::endl;
     // }
+    // {
+    //   std::cout << "Init cost functions" << std::endl;
+    //   std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
+
+    //   pBfmManager->loadWeights((data_path / "weight.txt").string());
+
+    //   std::cout << "Init cost functions" << std::endl;
+    //   std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
+    //   return 0;
+    // }
+
     {
-      for (double p2p_weight: {3.}) {
+      std::cout << "Init cost functions" << std::endl;
+      std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
+      for (double p2p_weight: {5.}) {
         p2p_weight *= 100;
         for (double p2plane_coef: {9.}) {
             double p2plane_weight = p2plane_coef * p2p_weight;
@@ -155,7 +169,7 @@ int main(int argc, char *argv[])
             pImageUtility->computeNormals();
             Optimizer optimizer(pBfmManager, pImageUtility);
             optimizer.setNumThreads(8);
-            optimizer.solveWithDepthConstraints(15, 0.0007, p2p_weight, p2plane_weight, 100., 100., 0., 2);
+            optimizer.solveWithDepthConstraints(20, 0.0004, p2p_weight, p2plane_weight, 150., 150., 0., 2);
 
             for (size_t t = 28; t < 32; ++t) {
               size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
@@ -174,8 +188,14 @@ int main(int argc, char *argv[])
             }
           }
       }
+      pBfmManager->writePly("adepth_res.ply");
+      std::string weightsFilePath = "../Data/bfm_weights.txt";
+      pBfmManager->saveWeights(weightsFilePath);
+      LOG(INFO) << "Weights saved to " << weightsFilePath << "\n";
+
+      std::cout << "Init cost functions" << std::endl;
+      std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
     }
-    // return 0;
 
     pBfmManager->computeVertexNormals();
     for (size_t t = 28; t < 32; ++t) {
