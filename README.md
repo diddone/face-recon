@@ -16,6 +16,18 @@ Our Face Reconstruction Pipeline aims to obtain parameters P' for a face paramet
 ## Expression Transfer
 ![image](https://github.com/diddone/face-recon/assets/47386144/73fc5182-38b5-4b56-9c01-02b1c2a84251)
 
+Transfer expression example. We find parameters independently using source (top left) and target (bottom left) actors. Then, we
+transfer expression coefficients from the source into the target. Finally, we project the source image into the mesh and visualize the mask
+above the source image.
+
+## Results
+![rgb_only_table](https://github.com/diddone/face-recon/assets/47386144/fba8fb91-ea2e-4ae6-9aee-13c077de306d)
+
+Results of the optimization pipeline using RGB only.
+In the center column, we apply a BFM model texture. The last
+column obtains texture from the projection mesh into the image.
+
+
 ## Building
 ```bash
 mkdir build && cd build
