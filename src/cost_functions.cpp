@@ -362,10 +362,10 @@ Eigen::Vector3d projectVertexIntoMesh(const std::shared_ptr<const BfmManager>& p
     double w3 = (c_i + 1 - uv[0]) * (uv[1] - c_j);
     double w4 = (uv[0] - c_i) * (uv[1] - c_j);
 
-    std::cout << w1 << " " << pImageUtility->UVtoColor(i, j) << std::endl;
-    std::cout << w2 << " " << pImageUtility->UVtoColor(i + 1, j) << std::endl;
-    std::cout << w3 << " " << pImageUtility->UVtoColor(i, j + 1) << std::endl;
-    std::cout << w4 << " " << pImageUtility->UVtoColor(i + 1, j + 1) << std::endl;
+    // std::cout << w1 << " " << pImageUtility->UVtoColor(i, j) << std::endl;
+    // std::cout << w2 << " " << pImageUtility->UVtoColor(i + 1, j) << std::endl;
+    // std::cout << w3 << " " << pImageUtility->UVtoColor(i, j + 1) << std::endl;
+    // std::cout << w4 << " " << pImageUtility->UVtoColor(i + 1, j + 1) << std::endl;
 
     Eigen::Vector3d trueColor =
     (

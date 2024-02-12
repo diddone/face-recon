@@ -36,21 +36,27 @@ public:
 
     void addPriorConstraints(double shapePriorWeight, double exprPriorWeight, double texPriorWeight) {
         size_t numberOfShapeParams = pBfmManager->m_nIdPcs;
-        problem.AddResidualBlock(
-                PriorShapeCostFunction::create(numberOfShapeParams, pBfmManager->m_vecShapeEv, shapePriorWeight), nullptr,
-                pBfmManager->m_aShapeCoef
-        );
+        if (shapePriorWeight > 0) {
+          problem.AddResidualBlock(
+                  PriorShapeCostFunction::create(numberOfShapeParams, pBfmManager->m_vecShapeEv, shapePriorWeight), nullptr,
+                  pBfmManager->m_aShapeCoef
+          );
+        }
 
-        size_t numberOfExpressionParams = pBfmManager->m_nExprPcs;
-        problem.AddResidualBlock(
-                PriorExprCostFunction::create(numberOfExpressionParams, pBfmManager->m_vecExprEv, exprPriorWeight), nullptr,
-                pBfmManager->m_aExprCoef
-        );
+        if (exprPriorWeight > 0) {
+          size_t numberOfExpressionParams = pBfmManager->m_nExprPcs;
+          problem.AddResidualBlock(
+                  PriorExprCostFunction::create(numberOfExpressionParams, pBfmManager->m_vecExprEv, exprPriorWeight), nullptr,
+                  pBfmManager->m_aExprCoef
+          );
+        }
 
-        problem.AddResidualBlock(
+        if (texPriorWeight > 0) {
+          problem.AddResidualBlock(
                 PriorTexCostFunction::create(numberOfShapeParams, pBfmManager->m_vecTexEv, texPriorWeight), nullptr,
                 pBfmManager->m_aTexCoef
-        );
+          );
+        }
     }
 
     void addSparseConstraints(double sparseWeight) {
