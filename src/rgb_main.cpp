@@ -81,40 +81,40 @@ int main(int argc, char *argv[])
       Optimizer optimizer(pBfmManager, pImageUtility);
       optimizer.setNumThreads(1);
       optimizer.setNumIterations(50);
-      optimizer.addPriorConstraints(50., 50., 0.);
-      optimizer.addSparseConstraints(0.0006);
-    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
-    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
+      optimizer.addPriorConstraints(100., 100., 0.);
+      optimizer.addSparseConstraints(0.0007);
+      optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aShapeCoef);
+     // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aTexCoef);
+      //optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExprCoef);
+
       optimizer.solve();
       optimizer.printReport();
-      optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aShapeCoef);
-      optimizer.problem.SetParameterBlockVariable(pBfmManager->m_aExprCoef);
+
       pBfmManager->genTransforms();
       std::cout << "Rotation\n" << pBfmManager->m_matR << std::endl;
       std::cout << "Translation\n" << pBfmManager->m_vecT << std::endl;
       std::cout << "scale \n" << pBfmManager->m_dScale << std::endl;
     }
 
-    // {
-    //   Optimizer optimizer(pBfmManager, pImageUtility);
-    //   optimizer.setNumThreads(1);
-    //   optimizer.setNumIterations(20);
-    //   optimizer.addPriorConstraints(100., 100., 0.);
-    //   optimizer.addSparseConstraints(0.0001);
+    {
+      Optimizer optimizer(pBfmManager, pImageUtility);
+      optimizer.setNumThreads(4);
+      optimizer.setNumIterations(20);
+      optimizer.addPriorConstraints(0., 0., 3.);
+      optimizer.addColorConstraints(1.);
 
-    //   optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExtParams.data());
-    //   optimizer.solve();
-    //   optimizer.printReport();
-    // }
+      optimizer.solve();
+      optimizer.printReport();
+    }
 
 
-    setCurrentTexAsImage(pBfmManager, pImageUtility);
+   // setCurrentTexAsImage(pBfmManager, pImageUtility);
     Visualizer visualizer(argc, *argv);
     visualizer.setupImage(imageFile);
     visualizer.setupFace(pBfmManager, pImageUtility);
     while (visualizer.shouldRenderFrame()) {
        visualizer.setupFrame();
-       visualizer.renderImage();
+      // visualizer.renderImage();
        visualizer.renderFaceMesh();
        visualizer.finishFrame();
     }
