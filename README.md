@@ -33,9 +33,16 @@ column obtains texture from the projection mesh into the image.
 mkdir build && cd build
 cmake ..
 make
+```
 
 ## Method
 
 You can read the final report where explained our method [here](link-to-your-report).
 
-## Results
+
+## Team Members
+- Gökçe Şengün
+- Dmitrii Pozdev
+- Biray Sütçüoğlu
+- David Gichev
+
