@@ -12,6 +12,9 @@ Our Face Reconstruction Pipeline aims to obtain parameters P' for a face paramet
 - Ceres
 -
 
+![image](https://github.com/diddone/face-recon/assets/47386144/73fc5182-38b5-4b56-9c01-02b1c2a84251)
+
+
 ## Building
 ```bash
 mkdir build && cd build
