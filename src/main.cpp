@@ -1,12 +1,12 @@
-#include "utils.h"
 #include "bfm_manager.h"
+#include "utils.h"
 
-#include <fstream>
-#include <iostream>
 #include <array>
-#include <memory>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <opencv2/core/mat.hpp>
 
 #include <string>
@@ -22,293 +22,134 @@
 
 const std::string LOG_PATH("./log");
 
-int main(int argc, char *argv[])
-{
-    // logging
-    boost::filesystem::path data_path("../Data");
-    std::string sBfmH5Path = (data_path / "model2017-1_face12_nomouth.h5").string();
-    std::string sLandmarkIdxPath = (data_path / "landmark_68.anl").string();
+int main(int argc, char *argv[]) {
+  // logging
+  boost::filesystem::path data_path("../Data");
+  std::string sBfmH5Path =
+      (data_path / "model2017-1_face12_nomouth.h5").string();
+  std::string sLandmarkIdxPath = (data_path / "landmark_68.anl").string();
 
-    // Check if the log directory exists, and create it if it doesn't
-    boost::filesystem::path log_path(LOG_PATH);
-    if (!boost::filesystem::exists(log_path)) {
-        if (!boost::filesystem::create_directory(log_path)) {
-            std::cerr << "Could not create log directory." << std::endl;
-            return 1;
-        }
+  // Check if the log directory exists, and create it if it doesn't
+  boost::filesystem::path log_path(LOG_PATH);
+  if (!boost::filesystem::exists(log_path)) {
+    if (!boost::filesystem::create_directory(log_path)) {
+      std::cerr << "Could not create log directory." << std::endl;
+      return 1;
     }
+  }
 
-    // Initialize Google Logging here, after the check for the log directory
-    bool isInitGlog = initGlog(argc, argv, LOG_PATH);
-    if (!isInitGlog) {
-        std::cout << "Glog problem\n";
-        return 1;
-    }
+  // Initialize Google Logging here, after the check for the log directory
+  bool isInitGlog = initGlog(argc, argv, LOG_PATH);
+  if (!isInitGlog) {
+    std::cout << "Glog problem\n";
+    return 1;
+  }
 
-    //Test logging
-    LOG(INFO) << "Logging initialized successfully.";
+  // Test logging
+  LOG(INFO) << "Logging initialized successfully.";
 
   // intrinsics parameters
   std::string cameraInfoPath((data_path / "camera_info.yaml").string());
-	std::shared_ptr<ImageUtilityThing> pImageUtility(new ImageUtilityThing(cameraInfoPath));
-	std::shared_ptr<BfmManager> pBfmManager(new BfmManager(sBfmH5Path, sLandmarkIdxPath));
+  std::shared_ptr<ImageUtilityThing> pImageUtility(
+      new ImageUtilityThing(cameraInfoPath));
+  std::shared_ptr<BfmManager> pBfmManager(
+      new BfmManager(sBfmH5Path, sLandmarkIdxPath));
   // Define a flag to check if weights are loaded
 
-
-  std::string imageFile = (data_path/"image.png").string();
-  std::string cloudFile = (data_path/"cloud.pcd").string();
+  std::string imageFile = (data_path / "image.png").string();
+  std::string cloudFile = (data_path / "cloud.pcd").string();
   std::string landmarkFile = (data_path / "image_landmarks_dlib.txt").string();
-  const std::string WEIGHTS_FILE_PATH("../Data/sparse_weights.txt"); // Path to the weights file
-  const std::string outWeightPath = "weights.txt";
-
-  // std::string imageFile = (data_path/"smile.png").string();
-  // std::string cloudFile = (data_path/"smile_cloud.pcd").string();
-  // std::string landmarkFile = (data_path / "landmrks_pipnet_smile.txt").string();
-  // const std::string WEIGHTS_FILE_PATH("../Data/smile_sparse_weights.txt"); // Path to the weights file
-  // const std::string outWeightPath = "smile_weights.txt";
+  const std::string WEIGHTS_FILE_PATH(
+      "../Data/none.txt"); // Path to the weights file
+  const std::string outWeightPath = "bright_color_light_weights.txt";
+  double sparseWeight = 0.0004;
 
   bool weightsLoaded = false;
-
   // Load weights if they exist
   if (boost::filesystem::exists(WEIGHTS_FILE_PATH)) {
-      try {
-          pBfmManager->loadWeights(WEIGHTS_FILE_PATH);
-          pBfmManager->updateFaceUsingParams(); // Apply the loaded parameters
-          LOG(INFO) << "Weights loaded successfully from " << WEIGHTS_FILE_PATH;
-          weightsLoaded = true;
-      } catch (const std::exception& e) {
-          LOG(ERROR) << "Error loading weights: " << e.what();
-          return 1;
-      }
+    try {
+      pBfmManager->loadWeights(WEIGHTS_FILE_PATH);
+      pBfmManager->updateFaceUsingParams(); // Apply the loaded parameters
+      LOG(INFO) << "Weights loaded successfully from " << WEIGHTS_FILE_PATH;
+      weightsLoaded = true;
+    } catch (const std::exception &e) {
+      LOG(ERROR) << "Error loading weights: " << e.what();
+      return 1;
+    }
   } else {
-        LOG(INFO) << "No weights file found. Proceeding without loading weights.";
+    LOG(INFO) << "No weights file found. Proceeding without loading weights.";
   }
 
   pImageUtility->input(imageFile, cloudFile, landmarkFile);
   VectorXd imageLandmarks = pImageUtility->getXYZLandmarks();
 
   ProcrustesAligner procruster;
-  ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
-  pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
-  // this functions inits extrinsics of the BfmManager
+  ExtrinsicTransform transform = procruster.estimatePose(
+      pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
+  pBfmManager->setRotTransScParams(transform.rotation, transform.translation,
+                                   transform.scale);
 
-    // pBfmManager->genAvgFace();
-    // pBfmManager->writePlyNew("avg_face_transformed_neg.ply");
-    // if (!weightsLoaded) {
-    //     std::cout << "Starting sparse optimsiation" << std::endl;
-    //     ProcrustesAligner procruster;
-    //     ExtrinsicTransform transform = procruster.estimatePose(pBfmManager->m_vecLandmarkCurrentBlendshape, imageLandmarks);
-    //     pBfmManager->setRotTransScParams(transform.rotation, transform.translation, transform.scale);
+  pBfmManager->computeVertexNormals();
+  pImageUtility->computeNormals();
+  {
+    double p2PWeight = 700.;
+    double p2PlaneCoef = 9.;
+    double p2PlaneWeight = p2PlaneCoef * p2PWeight;
+    std::cout << "Init depth cost functions" << std::endl;
+    std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
 
-    //     for (size_t t = 28; t < 32; ++t) {
-    //           size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //           auto uvVec = pImageUtility->getUVLandmarks();
-
-    //           auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //           auto bfmVec = pBfmManager->transformUsingExtrinsics(pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)).transpose();
-    //           std::cout << "Target Source Diff " << landmarkVec[2] << " " << bfmVec[2] << std::endl;
-    //           std::cout << "-----------------------\n-------------------------\n";
-    //     }
-    //     // Perform optimization if weights were not loaded
-    //     Optimizer optimizer(pBfmManager, pImageUtility);
-    //     optimizer.setNumThreads(1);
-    //     optimizer.setNumIterations(30);
-    //     optimizer.addPriorConstraints(10., 10., 0.);
-    //     optimizer.addSparseConstraints(0.0001);
-    //     // optimizer.problem.SetParameterBlockConstant(pBfmManager->m_aExtParams.data());
-    //     optimizer.solve();
-    //     optimizer.printReport();
-
-    //     pBfmManager->saveWeights(outWeightPath);
-    //     LOG(INFO) << "Weights saved to " << outWeightPath << std::endl;
-
-    //     for (size_t t = 28; t < 32; ++t) {
-    //       size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //       auto uvVec = pImageUtility->getUVLandmarks();
-
-    //       auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //       auto bfmVec = pBfmManager->transformUsingExtrinsics(pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)).transpose();
-    //       std::cout << "Target Source Diff " << landmarkVec[2] << " " << bfmVec[2] << std::endl;
-    //       std::cout << "-----------------------\n-------------------------\n";
-    //     }
-
-    //     Visualizer nvisualizer(argc, *argv);
-    //     nvisualizer.setupImage(imageFile);
-    //     nvisualizer.setupFace(pBfmManager, pImageUtility);
-    //     while (nvisualizer.shouldRenderFrame()) {
-    //       nvisualizer.setupFrame();
-    //       nvisualizer.renderImage();
-    //       nvisualizer.renderFaceMesh();
-    //       nvisualizer.finishFrame();
-    //     }
-    //     return 0;
-    // }
-
-    pBfmManager->computeVertexNormals();
     pImageUtility->computeNormals();
-    // for (size_t t = 28; t < 40; ++t) {
-    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //     auto uvVec = pImageUtility->getUVLandmarks();
-
-    //     auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //     auto bfmVec = (
-    //       pBfmManager->m_dScale * pBfmManager->m_matR * pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)
-    //       + pBfmManager->m_vecT
-    //     ).transpose();
-    //     std::cout << "Landmark " << t << std::endl;
-    //     std::cout << "Landmarks XYZ " << landmarkVec << std::endl;
-    //     std::cout << "BFM " << bfmVec <<std::endl;
-    //     std::cout << "Diff " << bfmVec - landmarkVec <<std::endl;
-
-    //     auto landNormal = pImageUtility->UVtoNormal(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //     // auto bfmNormal = (
-    //     //   pBfmManager->m_matR * pBfmManager->m_vecNormals.segment(3 * vertexInd, 3)
-    //     // ).transpose();
-    //     auto bfmNormal = pBfmManager->m_vecNormals.segment(3 * vertexInd, 3).transpose();
-    //     std::cout << "Normals XYZ " << landNormal << std::endl;
-    //     std::cout << "Normals BFM " << bfmNormal << std::endl;
-    //     std::cout << "Diff Normal " << landNormal - bfmNormal << std::endl;
-    //     std::cout << "-----------------\n";
-    //     // std::cout << bfmNormal.dot(bfmVec) << " " << pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3).dot()
-    // }
-
-    // for (size_t t = 28; t < 40; ++t) {
-    //     if (t != 29) {
-    //       continue;
-    //     }
-    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //     auto costFunction = DepthP2PlaneCostFunction(pBfmManager, pImageUtility, vertexInd, 1.0, 1.0);
-    //     double residual[2];
-    //     costFunction(
-    //       pBfmManager->m_aExtParams.data(),
-    //       pBfmManager->m_aShapeCoef,
-    //       pBfmManager->m_aExprCoef,
-    //       residual
-    //     );
-    //     std::cout << "Residuals " << residual[0] * residual[0] << " " << residual[1] * residual[1] << std::endl;
-    // }
-    // {
-    //   std::cout << "Init cost functions" << std::endl;
-    //   std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
-
-    //   pBfmManager->loadWeights((data_path / "weight.txt").string());
-
-    //   std::cout << "Init cost functions" << std::endl;
-    //   std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
-    //   return 0;
-    // }
-
-    {
-      for (size_t t = 28; t < 32; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        auto uvVec = pImageUtility->getUVLandmarks();
-
-        auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-        auto bfmVec = pBfmManager->transformUsingExtrinsics(pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)).transpose();
-        std::cout << "Target Source Diff" << landmarkVec[2] << " " << bfmVec[2] << std::endl;
-
-        auto landNormal = pImageUtility->UVtoNormal(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-        auto bfmNormal = pBfmManager->m_vecNormals.segment(3 * vertexInd, 3).transpose();
-        std::cout << "Normals XYZ " << landNormal << std::endl;
-        std::cout << "Normals BFM " << bfmNormal << std::endl;
-        std::cout << "Diff Normal " << landNormal - bfmNormal << std::endl;
-        std::cout << "-----------------------\n-------------------------\n";
-      }
-      std::cout << "Init cost functions" << std::endl;
-      std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
-      for (double p2p_weight: {7.}) {
-        p2p_weight *= 100;
-        for (double p2plane_coef: {9.}) {
-            double p2plane_weight = p2plane_coef * p2p_weight;
-            std::cout << "weights " << p2p_weight << " " << p2plane_weight << std::endl;
-
-            pImageUtility->computeNormals();
-            Optimizer optimizer(pBfmManager, pImageUtility);
-            optimizer.setNumThreads(8);
-            optimizer.solveWithDepthConstraints(20, 0.0004, p2p_weight, p2plane_weight, 150., 150., 0., 2);
-
-            for (size_t t = 28; t < 32; ++t) {
-              size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-              auto uvVec = pImageUtility->getUVLandmarks();
-
-              auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-              auto bfmVec = pBfmManager->transformUsingExtrinsics(pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)).transpose();
-              std::cout << "Target Source Diff" << landmarkVec[2] << " " << bfmVec[2] << std::endl;
-
-              auto landNormal = pImageUtility->UVtoNormal(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-              auto bfmNormal = pBfmManager->m_vecNormals.segment(3 * vertexInd, 3).transpose();
-              std::cout << "Normals XYZ " << landNormal << std::endl;
-              std::cout << "Normals BFM " << bfmNormal << std::endl;
-              std::cout << "Diff Normal " << landNormal - bfmNormal << std::endl;
-              std::cout << "-----------------------\n-------------------------\n";
-            }
-          }
-      }
-      pBfmManager->writePly("adepth_res.ply");
-      pImageUtility->writePly("adepth_target_cloud.ply");
-
-      pBfmManager->saveWeights(outWeightPath);
-      LOG(INFO) << "Weights saved to " << outWeightPath << "\n";
-
-      std::cout << "Init cost functions" << std::endl;
-      std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
-    }
-
-    // pBfmManager->computeVertexNormals();
-    // for (size_t t = 28; t < 32; ++t) {
-    //     size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-    //     auto uvVec = pImageUtility->getUVLandmarks();
-
-    //     auto landmarkVec = pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //     auto bfmVec = pBfmManager->transformUsingExtrinsics(pBfmManager->m_vecCurrentBlendshape.segment(3 * vertexInd, 3)).transpose();
-    //     std::cout << "Landmarks XYZ " << landmarkVec << std::endl;
-    //     std::cout << "BFM " << bfmVec <<std::endl;
-    //     std::cout << "Diff " << bfmVec - landmarkVec <<std::endl;
-
-    //     auto landNormal = pImageUtility->UVtoNormal(uvVec[2 * t], uvVec[2 * t + 1]).transpose();
-    //     auto bfmNormal = pBfmManager->m_vecNormals.segment(3 * vertexInd, 3).transpose();
-    //     std::cout << "Normals XYZ " << landNormal << std::endl;
-    //     std::cout << "Normals BFM " << bfmNormal << std::endl;
-    //     std::cout << "Diff Normal " << landNormal - bfmNormal << std::endl;
-    // }
-
-    //pBfmManager->transformShapeExprBFM();
-    // pBfmManager->updateFaceUsingParams();
-    // pBfmManager->writePly("proc_face.ply", false);
-
-    // Save the current weights to a file for further texture work
-    std::string weightsFilePath = "../Data/bfm_weights.txt";
-    pBfmManager->saveWeights("weight.txt");
-    LOG(INFO) << "Weights saved to " << "weight.txt\n";
-
-    // Important, dont forget to regenerate face (using coefs and extr)
-    std::cout << "Ext params translation" << pBfmManager->m_aExtParams[3] << " " << pBfmManager->m_aExtParams[4] << " " << pBfmManager->m_aExtParams[5] << "\n";
-    std::cout << "Old color\n";
-    // pBfmManager->transformShapeExprBFM();
-    // pBfmManager->updateFaceUsingParams();
-    for (size_t t = 28; t < 32; ++t) {
-        size_t vertexInd = pBfmManager->m_mapLandmarkIndices[t];
-        auto uvVec = pImageUtility->getUVLandmarks();
-        std::cout << "Landmarks XYZ " << pImageUtility->UVtoXYZ(uvVec[2 * t], uvVec[2 * t + 1]) << std::endl;
-        std::cout << "BFM " << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 1] << " "
-        << pBfmManager->m_vecCurrentBlendshape[3 * vertexInd + 2] << "\n";
-    }
+    Optimizer optimizer(pBfmManager, pImageUtility);
+    optimizer.setNumThreads(8);
+    optimizer.solveWithDepthConstraints(20, sparseWeight, p2PWeight,
+                                        p2PlaneWeight, 150., 150., 0., 2);
 
     pBfmManager->writePly("adepth_res.ply");
-    pImageUtility->writePly("atarget_cloud.ply");
+    pImageUtility->writePly("adepth_target_cloud.ply");
 
-    Visualizer visualizer(argc, *argv);
-    visualizer.setupImage(imageFile);
-    visualizer.setupFace(pBfmManager, pImageUtility);
-    while (visualizer.shouldRenderFrame()) {
-        visualizer.setupFrame();
-        visualizer.renderImage();
-        visualizer.renderFaceMesh();
-        visualizer.finishFrame();
+    std::cout << "Final Depth cost functions" << std::endl;
+    std::cout << computeDepthCostFunction(pBfmManager, pImageUtility);
+  }
+
+  // optimise for color
+  {
+    pBfmManager->computeVertexNormals();
+    Optimizer optimizer(pBfmManager, pImageUtility);
+    optimizer.setNumThreads(8);
+    optimizer.setNumIterations(30);
+    optimizer.addPriorConstraints(0., 0., 3.);
+    optimizer.addColorWithLightConstraints(1.0);
+    optimizer.solve();
+    optimizer.printReport();
+    pBfmManager->saveWeights(outWeightPath);
+    std::cout << "SH" << std::endl;
+
+    // set all SH coefficients as RGB and increasee intensity
+    for (size_t k = 0; k < 3; ++k) {
+      for (size_t t = 0; t < 9; ++t) {
+        pBfmManager->m_aSHCoef[9 * k + t] =
+            1.5 * pBfmManager->m_aSHCoef[9 * 2 + t];
+      }
     }
 
-    visualizer.closeOpenGL();
-    google::ShutdownGoogleLogging();
-	return 0;
+    // setCurrentTexAsImageMinusLight(pBfmManager, pImageUtility);
+    addLightToTexture(pBfmManager);
+  }
+
+  pBfmManager->saveWeights(outWeightPath);
+  LOG(INFO) << "Weights saved to " << outWeightPath << "\n";
+
+  Visualizer visualizer(argc, *argv);
+  visualizer.setupImage(imageFile);
+  visualizer.setupFace(pBfmManager, pImageUtility);
+  while (visualizer.shouldRenderFrame()) {
+    visualizer.setupFrame();
+    visualizer.renderImage();
+    visualizer.renderFaceMesh();
+    visualizer.finishFrame();
+  }
+
+  visualizer.closeOpenGL();
+  google::ShutdownGoogleLogging();
+  return 0;
 }
