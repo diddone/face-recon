@@ -98,6 +98,15 @@ public:
         }
     }
 
+    void addColorWithLightConstraints(double colorWeight) {
+        // same as other two
+        for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; vertexInd+=3) {
+            problem.AddResidualBlock(ColorWithLightningCostFunction::create(
+                pBfmManager, pImageUtility, vertexInd, colorWeight / pBfmManager->m_nVertices
+            ), nullptr, pBfmManager->m_aTexCoef, pBfmManager->m_aSHCoef);
+        }
+    }
+
     void solve() {
       ceres::Solve(options, &problem, &summary);
       pBfmManager->updateFaceUsingParams();

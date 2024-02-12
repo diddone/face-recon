@@ -108,6 +108,7 @@ void BfmManager::alloc() {
   m_matShapePc.resize(m_nVertices * 3, m_nIdPcs);
 
   m_aTexCoef = new double[m_nIdPcs];
+  m_aSHCoef = new double[3 * 9];
   std::fill(m_aTexCoef, m_aTexCoef + m_nIdPcs, 0.0);
   m_vecTexMu.resize(m_nVertices * 3);
   m_vecTexEv.resize(m_nIdPcs);

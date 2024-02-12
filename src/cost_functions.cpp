@@ -415,6 +415,7 @@ struct ColorCostFunction {
         const double weight;
         // target values of color
         Vector3d trueColor;
+
 };
 
 
@@ -426,7 +427,6 @@ void setCurrentTexAsImage(const std::shared_ptr<BfmManager>& pBfmManager, const 
         pBfmManager->m_vecCurrentTex[3 * vertexInd + 2] = trueColor[2];
     }
 }
-
 
 VectorXd EvaluateSH(const Vector3d& dir) {
     VectorXd shBasis(9);
@@ -453,19 +453,26 @@ struct ColorWithLightningCostFunction {
     ColorWithLightningCostFunction(const std::shared_ptr<const BfmManager> _pBfmManager,  const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight):
         pBfmManager(_pBfmManager), pImageUtility(_pImageUtility), vertexId(vertexId), weight(weight) {
             trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexId);
-        }
+            auto normal = pBfmManager->m_vecNormals.segment(3 * vertexId, 3);
+            shBasis = EvaluateSH(normal);
+    }
 
     // assuming there is no transformation
     template<typename T>
-	bool operator()(const T* const texCoefs, T* residual) const  {
+	bool operator()(const T* const texCoefs, const T* const sHCoefs, T* residual) const  {
         // iterating over xyz
-
         for(size_t k = 0; k < 3; ++k) {
             T color(pBfmManager->m_vecTexMu[3 * vertexId + k]);
 
             for (size_t i = 0; i < pBfmManager->m_nIdPcs; ++i) {
                 color += T(pBfmManager->m_matTexPc(3 * vertexId + k, i)) * texCoefs[i];
             }
+
+            T light(0.);
+            for (size_t t = 0; t < 9; ++t) {
+               light += sHCoefs[9 * k + t] * T(shBasis[t]);
+            }
+            color *= light;
             residual[k] = T(sqrt(weight)) * (color - T(trueColor[k]));
         }
 
@@ -474,7 +481,7 @@ struct ColorWithLightningCostFunction {
 
     static ceres::CostFunction* create(const std::shared_ptr<const BfmManager>& _pBfmManager, const std::shared_ptr<const ImageRGBOnly> _pImageUtility, size_t vertexId, double weight) {
 
-        return new ceres::AutoDiffCostFunction<ColorWithLightningCostFunction, 3, N_SHAPE_PARAMS>(
+        return new ceres::AutoDiffCostFunction<ColorWithLightningCostFunction, 3, N_SHAPE_PARAMS, 27>(
             new ColorWithLightningCostFunction(_pBfmManager, _pImageUtility, vertexId, weight)
         );
     }
@@ -489,6 +496,45 @@ struct ColorWithLightningCostFunction {
         VectorXd shBasis;
 };
 
+void addLightToTexture(std::shared_ptr <BfmManager> pBfmManager) {
+  for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+    auto shBasis = EvaluateSH(pBfmManager->m_vecNormals.segment(3 * vertexInd, 3));
+    for (size_t k = 0; k < 3; ++k) {
+      double light = 0.;
+      for (size_t t = 0; t < 9; ++t) {
+          light += pBfmManager->m_aSHCoef[9 * k + t] * shBasis[t];
+      }
+      // if (vertexInd % 1000 == 264) {
+      //   std::cout << "Light" << light << std::endl;
+
+      //   for (size_t t = 0; t < 27; ++t) {
+      //     std::cout << pBfmManager->m_aSHCoef[t]  << " ";
+      //   }
+      //   std::cout << std::endl;
+      // }
+      pBfmManager->m_vecCurrentTex[3 * vertexInd + k] *= light;
+    }
+  }
+}
+
+void setCurrentTexAsImageMinusLight(const std::shared_ptr<BfmManager>& pBfmManager, const std::shared_ptr<const ImageRGBOnly> pImageUtility) {
+    for (size_t vertexInd = 0; vertexInd < pBfmManager->m_nVertices; ++vertexInd) {
+        Vector3d trueColor = projectVertexIntoMesh(pBfmManager, pImageUtility, vertexInd);
+        auto shBasis = EvaluateSH(pBfmManager->m_vecNormals.segment(3 * vertexInd, 3));
+        for (size_t k = 0; k < 3; ++k) {
+          double light = 0.;
+          for (size_t t = 0; t < 9; ++t) {
+              light += pBfmManager->m_aSHCoef[9 * k + t] * shBasis[t];
+          }
+
+          trueColor[k] /= light;
+          if (trueColor[k] > 1.0) {
+            trueColor[k] = 1.0;
+          }
+          pBfmManager->m_vecCurrentTex[3 * vertexInd + k] = trueColor[k];
+        }
+    }
+}
 
 struct ResultsDepthCostFunc {
   double pure_p2p;

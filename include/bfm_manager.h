@@ -170,7 +170,6 @@ public:
 	// std::vector<Eigen::Vector3d> computeVertexNormals();
 	Eigen::Vector3d computeFNormal(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c, bool normalized=true);
 
-
 	/* @Function writePly
 	 * @Function writeLandmarkPly
 	 * 		Write face model or landmark into .ply format file.
@@ -456,6 +455,7 @@ public:
 	Eigen::VectorXd m_vecTexMu;
 	Eigen::VectorXd m_vecTexEv;
 	Eigen::MatrixXd m_matTexPc;
+  double *m_aSHCoef;
 
 	double *m_aExprCoef;
 	Eigen::VectorXd m_vecExprMu;
