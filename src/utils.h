@@ -61,8 +61,9 @@ public:
         // init intrinsics
         double Fx = 50.;
         double Fy = 50.;
-        double W = 36.;
-        double H = 24.;
+        double W = (image_size.width > image_size.height) ? 36. : 24.;
+        double H = (image_size.width > image_size.height) ? 24. : 36.;
+        
         double fx = Fx * image_size.width / W;
         double fy = Fy * image_size.height / H;
         double cx = double(image_size.width) / 2;
