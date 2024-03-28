@@ -1,5 +1,7 @@
 # Face Reconstruction
-Our Face Reconstruction Pipeline aims to obtain parameters P' for a face parametric model M(P) that match a given RGB-D image I. It utilizes PCA-based morphable face models encompassing pose, shape, albedo, illumination, and expression parameters. The reconstruction process follows an analysis-by-synthesis approach, updating parameters to minimize an overall energy function. The energy function includes dense and sparse terms, incorporating geometry and color comparisons between the rendered face and the actual image.
+Our face reconstruction C++ pipeline aims to obtain parameters for a morphable face model that matches a given RGB/RGB-D image. It utilizes a PCA-based Basel Face Model encompassing shape, expression, albedo, illumination, and pose parameters. 
+
+The reconstruction process follows an analysis-by-synthesis approach, updating parameters to minimize an overall energy function using Ceres. The energy function includes dense and sparse terms, incorporating geometry and color comparisons between the rendered face and the actual image.
 
 ## Main Dependencies
 
