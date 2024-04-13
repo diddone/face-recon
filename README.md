@@ -37,7 +37,7 @@ make
 
 ## Method
 
-You can read the final report where explained our method [here](link-to-your-report).
+You can read the final report where explained our method [here](https://github.com/diddone/face-recon/blob/main/report.pdf).
 
 
 ## Team Members
